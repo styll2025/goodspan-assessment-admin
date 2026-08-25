@@ -202,41 +202,58 @@ p {
   padding: 0 16px;
 }
 
-.brandCompact {
+.topLeft {
   display: flex;
-  min-width: 220px;
   align-items: center;
   gap: 14px;
+  flex: 0 0 auto;
+}
+
+.brandCompact {
+  display: grid;
+  align-content: center;
+  flex: 0 0 auto;
+  gap: 1px;
 }
 
 .brandCompact strong {
-  font-size: 21px;
+  color: #1b1f1a;
+  font-family: Newsreader, Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .brandCompact span {
-  margin: 0;
+  color: #5a5f56;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .topbar nav {
   display: flex;
   align-items: stretch;
-  justify-content: center;
+  flex: 0 0 auto;
+  gap: 0;
   height: 100%;
 }
 
 .navButton {
   border: none;
-  background: #fff;
+  background: none;
   color: #5a5f56;
+  cursor: pointer;
   min-width: auto;
   padding: 0 11px;
   font-size: 12.5px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .navButton.active {
@@ -247,14 +264,15 @@ p {
 
 .topStatus {
   display: flex;
-  min-width: 230px;
+  min-width: 0;
+  flex: 0 1 auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   color: #5a5f56;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
@@ -268,7 +286,9 @@ p {
   border: none;
   background: none;
   color: #5a5f56;
-  padding: 0.5rem 0;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .respondentPage {
@@ -487,14 +507,15 @@ p {
   gap: 0;
 }
 
-.contentGrid > div,
-.inspector {
-  padding: 26px 34px 60px;
+.contentGrid > div {
+  border-right: 2px solid #dfddd3;
+  padding: 26px 30px 34px;
 }
 
 .inspector {
   border-left: 2px solid #dfddd3;
   background: #fff;
+  padding: 26px 30px 34px;
 }
 
 .practiceList,
@@ -541,33 +562,56 @@ p {
 }
 
 .practice {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 0 14px;
   border-bottom: 1px solid #dfddd3;
   padding: 18px 0;
 }
 
-.practiceTop {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0 14px;
-  align-items: start;
+.practiceBody {
+  min-width: 0;
+}
+
+.practiceHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.familyLabel {
+  color: #2c4636;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.familyLabel.social {
+  color: #8a6b1f;
 }
 
 .practice h4 {
   font-size: 18px;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  margin: 5px 0 0;
 }
 
-.practice p {
-  color: #3d423a;
+.practiceWhy {
+  max-width: 62ch;
+  color: #5a5f56;
+  font-size: 14px;
   line-height: 1.55;
+  margin: 7px 0 0;
 }
 
 .slot {
   color: #aece36;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
@@ -580,13 +624,18 @@ p {
 }
 
 .practiceActions button:first-child {
+  display: flex;
   width: 19px;
   height: 19px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid #8a8f86;
   border-radius: 50%;
   background: none;
   color: #5a5f56;
   font-size: 11px;
+  font-weight: 800;
   line-height: 1;
   padding: 0;
 }
@@ -596,8 +645,76 @@ p {
   background: none;
   color: #5a5f56;
   font-size: 11.5px;
+  font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0;
+  text-transform: uppercase;
+}
+
+.reasonTag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 7px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reasonTag.circle {
+  background: #ede6f3;
+  color: #5c3a7a;
+}
+
+.reasonTag.habit {
+  background: #eaf2d2;
+  color: #2c4636;
+}
+
+.evidenceRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: baseline;
+  margin-top: 9px;
+}
+
+.evidenceRow > span {
+  color: #8a8f86;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sourceText {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #5a5f56;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.sourceText.open {
+  -webkit-line-clamp: 99;
+}
+
+.moreLink {
+  border: none;
+  background: none;
+  color: #2c4636;
+  padding: 2px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-transform: uppercase;
 }
 
 .pill {
@@ -743,7 +860,7 @@ summary {
 
 .swapInfo {
   border-left-color: #2c4636;
-  margin: 9px 0 10px 50px;
+  margin-top: 9px;
 }
 
 .swapInfo strong {
@@ -762,7 +879,7 @@ summary {
 .alternativeBox {
   border: 2px solid #dfddd3;
   background: #fafaf8;
-  margin: 12px 0 0 50px;
+  margin-top: 12px;
 }
 
 .alternativeBox > div {
@@ -1717,22 +1834,10 @@ summary {
 }
 
 @media (max-width: 720px) {
-  .topbar,
   .respondentPage,
   .contentGrid,
   .settingsGrid {
     grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    display: grid;
-    height: auto;
-    padding: 12px 16px;
-  }
-
-  .topbar nav {
-    justify-content: start;
-    overflow-x: auto;
   }
 
   .sidebar {

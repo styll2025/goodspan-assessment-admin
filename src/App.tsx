@@ -162,24 +162,26 @@ export default function App() {
     <div className="appShell">
       {!isPlanMode && (
         <header className="topbar">
-          <div className="brandCompact">
-            <strong>The Good Span</strong>
-            <span>Practice Matcher</span>
+          <div className="topLeft">
+            <div className="brandCompact">
+              <strong>The Good Span</strong>
+              <span>Practice Matcher</span>
+            </div>
+            <nav>
+              {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
+                <button
+                  key={item}
+                  className={tab === item ? 'active navButton' : 'navButton'}
+                  onClick={() => {
+                    setTab(item);
+                    setPlanOpen(false);
+                  }}
+                >
+                  {item === 'library' ? 'Library' : title(item)}
+                </button>
+              ))}
+            </nav>
           </div>
-          <nav>
-            {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
-              <button
-                key={item}
-                className={tab === item ? 'active navButton' : 'navButton'}
-                onClick={() => {
-                  setTab(item);
-                  setPlanOpen(false);
-                }}
-              >
-                {item === 'library' ? 'Library' : title(item)}
-              </button>
-            ))}
-          </nav>
           <div className="topStatus">
             <span className="dot" />
             <span>{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
@@ -310,6 +312,7 @@ function RespondentPlan({
   const scores = habitScores(respondent);
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
+  const [sourceOpen, setSourceOpen] = useState<string | null>(null);
   const circleMembers = circle?.members.filter((member) => member.id !== respondent.id) ?? [];
   const circleCaption =
     circle && circle.members.length
@@ -377,71 +380,79 @@ function RespondentPlan({
           <div className="practiceList">
             {plan.items.map((item, index) => {
               const itemKey = `${index}-${item.category}-${item.practice.text}`;
+              const social = SOCIAL_CATEGORIES[plan.pillarId].includes(item.category);
+              const reasonText = reasonLabel(item.reason);
+              const source = item.practice.references.join('\n') || item.practice.evidence;
+              const sourceExpanded = sourceOpen === itemKey;
               return (
                 <article key={itemKey} className="practice">
-                  <div className="practiceTop">
-                    <span className="slot">{index + 1}</span>
-                    <div>
-                      <p className="eyebrow">{item.category}</p>
-                      <h4>{item.practice.text}</h4>
+                  <span className="slot">{String(index + 1).padStart(2, '0')}</span>
+                  <div className="practiceBody">
+                    <div className="practiceHead">
+                      <span className={social ? 'familyLabel social' : 'familyLabel'}>
+                        {item.category}{social ? ' · Circle' : ''}
+                      </span>
+                      <span className="practiceActions">
+                        <button
+                          title="How Swap works"
+                          type="button"
+                          onClick={() => setInfoOpen(infoOpen === itemKey ? null : itemKey)}
+                        >
+                          i
+                        </button>
+                        <button
+                          title="Swap replaces this practice with a different one from the same category, at the same intensity."
+                          type="button"
+                          onClick={() => setSwapOpen(swapOpen === itemKey ? null : itemKey)}
+                        >
+                          {swapOpen === itemKey ? 'Close ↑' : 'Swap ↻'}
+                        </button>
+                      </span>
                     </div>
-                    <span className="practiceActions">
-                      <button
-                        title="How this slot was filled"
-                        type="button"
-                        onClick={() => setInfoOpen(infoOpen === itemKey ? null : itemKey)}
-                      >
-                        i
-                      </button>
-                      <button
-                        title="Swap replaces this practice with a different one from the same category, at the same intensity."
-                        type="button"
-                        onClick={() => setSwapOpen(swapOpen === itemKey ? null : itemKey)}
-                      >
-                        Swap
-                      </button>
-                    </span>
+                    {infoOpen === itemKey && (
+                      <div className="infoBox swapInfo">
+                        <strong>How this slot was filled, and what Swap does</strong>
+                        <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the respondent's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
+                        <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this respondent only and leaves the Practice Bank untouched.</p>
+                      </div>
+                    )}
+                    {reasonText && (
+                      <span className={item.reason === 'social' ? 'reasonTag circle' : 'reasonTag habit'}>
+                        {reasonText}
+                      </span>
+                    )}
+                    <h4>{item.practice.text}</h4>
+                    {item.practice.why && <p className="practiceWhy">{item.practice.why}</p>}
+                    {source && (
+                      <div className="evidenceRow">
+                        <span>Evidence</span>
+                        <div>
+                          <p className={sourceExpanded ? 'sourceText open' : 'sourceText'}>{source}</p>
+                          {source.length > 62 && (
+                            <button
+                              type="button"
+                              className="moreLink"
+                              onClick={() => setSourceOpen(sourceExpanded ? null : itemKey)}
+                            >
+                              {sourceExpanded ? 'Less' : 'More'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {swapOpen === itemKey && (
+                      <div className="alternativeBox">
+                        <div>Alternatives in {item.category}</div>
+                        {item.alternatives.length ? (
+                          item.alternatives.map((alternative) => (
+                            <button key={alternative.text} type="button">{alternative.text}</button>
+                          ))
+                        ) : (
+                          <p>No alternatives at this intensity in this category.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {infoOpen === itemKey && (
-                    <div className="infoBox swapInfo">
-                      <strong>How this slot was filled, and what Swap does</strong>
-                      <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the respondent's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                      <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this respondent only and leaves the Practice Bank untouched.</p>
-                    </div>
-                  )}
-                  <Pill label={reasonLabel(item.reason)} />
-                  {item.practice.why && <p>{item.practice.why}</p>}
-                  {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges).length > 0 && (
-                    <p className="muted">
-                      Matched:{' '}
-                      {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges)
-                        .map((term) => `${term.keyword} (${term.challenge})`)
-                        .join(', ')}
-                    </p>
-                  )}
-                  {item.practice.references.length > 0 && (
-                    <details>
-                      <summary>Evidence</summary>
-                      {item.practice.evidence && <p>{item.practice.evidence}</p>}
-                      <ul>
-                        {item.practice.references.map((reference) => (
-                          <li key={reference}>{reference}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                  {swapOpen === itemKey && (
-                    <div className="alternativeBox">
-                      <div>Alternatives in {item.category}</div>
-                      {item.alternatives.length ? (
-                        item.alternatives.map((alternative) => (
-                          <button key={alternative.text} type="button">{alternative.text}</button>
-                        ))
-                      ) : (
-                        <p>No alternatives at this intensity in this category.</p>
-                      )}
-                    </div>
-                  )}
                 </article>
               );
             })}
@@ -1160,8 +1171,11 @@ function practiceCount(): number {
 
 function reasonLabel(reason: Plan['items'][number]['reason']): string {
   if (reason === 'social') return 'Circle practice';
-  if (reason.startsWith('habit:')) return HABIT_LABEL[reason.slice(6) as keyof typeof HABIT_LABEL];
-  return title(reason);
+  if (reason.startsWith('habit:')) {
+    const habit = HABIT_LABEL[reason.slice(6) as keyof typeof HABIT_LABEL];
+    return habit ? `Prioritized on ${habit.toLowerCase()}` : '';
+  }
+  return '';
 }
 
 function labelForTime(value: string): string {
