@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
   HABIT_LABEL,
+  CHALLENGE_KEYWORDS,
   PILLAR_LABEL,
   PILLARS,
   PRACTICES,
@@ -13,7 +14,7 @@ import {
   suggestCircleFor,
 } from './lib/matching';
 import { generateSampleRespondents } from './lib/sampleData';
-import type { Circle, MatchingSettings, Pillar, Plan, Respondent } from './types';
+import type { Challenge, Circle, Level, MatchingSettings, Pillar, Plan, Respondent } from './types';
 
 type Tab = 'respondents' | 'circles' | 'library' | 'settings';
 
@@ -33,6 +34,7 @@ export default function App() {
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
   const [status, setStatus] = useState('Not connected - using local data');
   const [practicePillar, setPracticePillar] = useState<Pillar | 'all'>('all');
+  const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
   const [practiceQuery, setPracticeQuery] = useState('');
   const [jsonInput, setJsonInput] = useState('');
 
@@ -141,7 +143,7 @@ export default function App() {
       <header className="topbar">
         <div className="brandCompact">
           <strong>The Good Span</strong>
-          <span>Admin</span>
+          <span>Practice Matcher</span>
         </div>
         <nav>
           {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
@@ -211,8 +213,10 @@ export default function App() {
       {tab === 'library' && (
         <PracticeBank
           pillar={practicePillar}
+          level={practiceLevel}
           query={practiceQuery}
           onPillar={setPracticePillar}
+          onLevel={setPracticeLevel}
           onQuery={setPracticeQuery}
         />
       )}
@@ -281,7 +285,7 @@ function RespondentPlan({
 
       <section className="spanBand">
         <div>
-          <p className="eyebrow light">Matched Span</p>
+          <p className="eyebrow light">Recommended Span</p>
           <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
         </div>
         <div>
@@ -292,7 +296,13 @@ function RespondentPlan({
 
       <section className="contentGrid">
         <div>
-          <h3>Practice plan</h3>
+          <div className="sectionHead">
+            <div>
+              <h3>Five personalised practices</h3>
+              <span>{PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
+            </div>
+            <button className="planButton">Generate personalised plan →</button>
+          </div>
           <div className="practiceList">
             {plan.items.map((item, index) => (
               <article key={`${item.category}-${item.practice.text}`} className="practice">
@@ -421,13 +431,17 @@ function CirclesView({
 
 function PracticeBank({
   pillar,
+  level,
   query,
   onPillar,
+  onLevel,
   onQuery,
 }: {
   pillar: Pillar | 'all';
+  level: Level | 'all';
   query: string;
   onPillar: (pillar: Pillar | 'all') => void;
+  onLevel: (level: Level | 'all') => void;
   onQuery: (query: string) => void;
 }) {
   const rows = PILLARS.flatMap((pillarId) =>
@@ -436,38 +450,83 @@ function PracticeBank({
     ),
   ).filter((row) => {
     const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence}`.toLowerCase();
-    return (pillar === 'all' || row.pillarId === pillar) && (!query || text.includes(query.toLowerCase()));
+    return (
+      (pillar === 'all' || row.pillarId === pillar) &&
+      (level === 'all' || row.practice.level === level) &&
+      (!query || text.includes(query.toLowerCase()))
+    );
   });
+  const grouped = PILLARS.map((pillarId) => ({
+    pillarId,
+    rows: rows.filter((row) => row.pillarId === pillarId),
+  })).filter((group) => group.rows.length > 0);
+  const allChallenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
 
   return (
     <main className="page">
       <section className="pageIntro">
-        <p className="eyebrow">Practice Bank</p>
-        <h1>Evidence-based library</h1>
-        <p>Browse the same practice data used by respondent plans.</p>
-        <div className="toolbar">
-          <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search practices..." />
-          <div className="filters">
-            {(['all', ...PILLARS] as Array<Pillar | 'all'>).map((item) => (
-              <button key={item} className={pillar === item ? 'active' : ''} onClick={() => onPillar(item)}>
-                {item === 'all' ? 'All' : PILLAR_LABEL[item]}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p className="eyebrow">Library</p>
+        <h1>Practice Bank</h1>
+        <p>All practices across the four core Span pillars.</p>
       </section>
-      <div className="practiceBank">
-        {rows.map((row) => (
-          <article key={`${row.pillarId}-${row.category}-${row.practice.text}`} className="practice">
-            <p className="eyebrow">
-              {PILLAR_LABEL[row.pillarId]} · {row.category} · {row.practice.level}
-            </p>
-            <h4>{row.practice.text}</h4>
-            {row.practice.why && <p>{row.practice.why}</p>}
-            {row.practice.evidence && <p className="muted">{row.practice.evidence}</p>}
-          </article>
-        ))}
+      <div className="filterBar">
+        <div className="segmented">
+          {(['all', ...PILLARS] as Array<Pillar | 'all'>).map((item) => (
+            <button key={item} className={pillar === item ? 'active' : ''} onClick={() => onPillar(item)}>
+              {item === 'all' ? 'All' : PILLAR_LABEL[item]}
+            </button>
+          ))}
+        </div>
+        <div className="segmented">
+          {(['all', 'gentle', 'moderate', 'deep'] as Array<Level | 'all'>).map((item) => (
+            <button key={item} className={level === item ? 'active' : ''} onClick={() => onLevel(item)}>
+              {item === 'all' ? 'All levels' : title(item)}
+            </button>
+          ))}
+        </div>
+        <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search practice text..." />
+        <span className="shownLabel">{rows.length} shown</span>
       </div>
+      {rows.length === 0 ? (
+        <p className="emptyLine">No practices match these filters.</p>
+      ) : (
+        grouped.map((group) => (
+          <section key={group.pillarId} className="bankGroup">
+            <div className="bankTitle">
+              <h2>{PILLAR_LABEL[group.pillarId]}</h2>
+              <span>{group.rows.length} {group.rows.length === 1 ? 'practice' : 'practices'}</span>
+            </div>
+            <div className="bankGrid bankHead">
+              <span>Level</span>
+              <span>Category</span>
+              <span>Practice</span>
+              <span>Keywords matched</span>
+              <span>Evidence</span>
+            </div>
+            {group.rows.map((row) => {
+              const terms = matchedChallengeTerms(row.practice, row.category, allChallenges);
+              return (
+                <article key={`${row.pillarId}-${row.category}-${row.practice.text}`} className="bankGrid bankRow">
+                  <span className={`levelText ${row.practice.level}`}>{row.practice.level}</span>
+                  <span className="categoryText">{row.category}</span>
+                  <strong>{row.practice.text}</strong>
+                  <span className="keywordCell">
+                    {terms.length
+                      ? terms.slice(0, 4).map((term) => (
+                          <span className="keywordChip" key={`${term.challenge}-${term.keyword}`}>
+                            {term.keyword}
+                            <small>{term.challenge}</small>
+                          </span>
+                        ))
+                      : '—'}
+                  </span>
+                  <span className="evidenceText">{row.practice.evidence || row.practice.references[0] || '—'}</span>
+                </article>
+              );
+            })}
+          </section>
+        ))
+      )}
     </main>
   );
 }
@@ -496,49 +555,97 @@ function SettingsView({
   onSample: () => void;
 }) {
   return (
-    <main className="page settingsGrid">
-      <section className="panel">
-        <p className="eyebrow">Matching settings</p>
-        <h2>Stated-goal influence</h2>
-        <label>
-          {Math.round(settings.statedGoalWeight * 100)}%
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={settings.statedGoalWeight}
-            onChange={(event) => onSettings({ ...settings, statedGoalWeight: Number(event.target.value) })}
-          />
-        </label>
-        <p className="muted">
-          At 100%, the stated goal wins outright. Below 100%, it is added to the score and can still lose.
-        </p>
-        <h3>Circle size</h3>
-        <div className="numberGrid">
-          <NumberInput label="Minimum" value={settings.minCircleSize} onChange={(v) => onSettings({ ...settings, minCircleSize: v })} />
-          <NumberInput label="Target" value={settings.targetCircleSize} onChange={(v) => onSettings({ ...settings, targetCircleSize: v })} />
-          <NumberInput label="Maximum" value={settings.maxCircleSize} onChange={(v) => onSettings({ ...settings, maxCircleSize: v })} />
+    <main className="page">
+      <section className="pageIntro">
+        <p className="eyebrow">Configuration</p>
+        <h1>Settings</h1>
+        <p>Where responses come from, and how to reset the matcher while you are piloting.</p>
+      </section>
+
+      <section className="settingSection">
+        <div>
+          <h2>Data source</h2>
+          <p>Paste the Google Apps Script Web App URL that serves your response sheet. Without it, the tool reads locally loaded responses.</p>
+        </div>
+        <div className="settingBody">
+          <div className="statusBox">
+            <span className="dot" />
+            <strong>{status}</strong>
+          </div>
+          <label>
+            Web App URL
+            <input placeholder="https://script.google.com/macros/s/.../exec" value={sheetUrl} onChange={(event) => onSheetUrl(event.target.value)} />
+          </label>
+          <div className="buttonRow">
+            <button className="primary" onClick={onLoadSheet}>Connect</button>
+            <button onClick={onLoadSheet}>↻ Refresh responses</button>
+          </div>
         </div>
       </section>
 
-      <section className="panel">
-        <p className="eyebrow">Data source</p>
-        <h2>Load responses</h2>
-        <label>
-          Google Sheet endpoint
-          <input value={sheetUrl} onChange={(event) => onSheetUrl(event.target.value)} />
-        </label>
-        <div className="buttonRow">
-          <button className="primary" onClick={onLoadSheet}>Load sheet</button>
-          <button onClick={onSample}>Load sample data</button>
+      <section className="settingSection">
+        <div>
+          <h2>Matching and display</h2>
+          <p>How the matcher weighs a respondent's stated goal. These apply to every respondent.</p>
         </div>
-        <p className="muted">{status}</p>
-        <label>
-          Paste respondent JSON
-          <textarea value={jsonInput} onChange={(event) => onJsonInput(event.target.value)} placeholder="[{...}]" />
-        </label>
-        <button onClick={onLoadJson}>Load pasted JSON</button>
+        <div className="settingBody">
+          <div className="sliderBlock">
+            <div className="sliderHead">
+              <strong>Stated-goal influence</strong>
+              <span>{Math.round(settings.statedGoalWeight * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={settings.statedGoalWeight}
+              onChange={(event) => onSettings({ ...settings, statedGoalWeight: Number(event.target.value) })}
+            />
+            <div className="rangeLabels">
+              <span>Habit answers only</span>
+              <span>Favour stated goal</span>
+            </div>
+            <p>At 0%, the Span comes from habit answers and stated challenges. Moving the slider adds a boost toward their stated goal. At 100%, their stated goal is used directly.</p>
+          </div>
+          <div className="explainBox">
+            <strong>How the five slots are chosen</strong>
+            <p>First, the best-scoring Circle-facing category is given a slot outright. Then remaining categories are ranked on their best practice's keyword score plus weak-habit priority.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="settingSection">
+        <div>
+          <h2>Circle formation</h2>
+          <p>Circles are grouped by same Span and exact city, then mixed for diversity across age, gender, personality, work and home life.</p>
+        </div>
+        <div className="settingBody">
+          <div className="numberGrid">
+            <NumberInput label="Minimum size" value={settings.minCircleSize} onChange={(v) => onSettings({ ...settings, minCircleSize: v })} />
+            <NumberInput label="Target size" value={settings.targetCircleSize} onChange={(v) => onSettings({ ...settings, targetCircleSize: v })} />
+            <NumberInput label="Maximum size" value={settings.maxCircleSize} onChange={(v) => onSettings({ ...settings, maxCircleSize: v })} />
+          </div>
+          <div className="explainBox">
+            <strong>Higher diversity</strong>
+            <p>The system places each person into the Circle where they are least similar to the people already in it. Smaller groups are flagged as needing more people.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="settingSection">
+        <div>
+          <h2>Test data and import</h2>
+          <p>Load realistic sample respondents or paste a JSON array while piloting the admin workflow.</p>
+        </div>
+        <div className="settingBody">
+          <button onClick={onSample}>Load sample data</button>
+          <label>
+            Paste respondent JSON
+            <textarea value={jsonInput} onChange={(event) => onJsonInput(event.target.value)} placeholder="[{...}]" />
+          </label>
+          <button onClick={onLoadJson}>Load pasted JSON</button>
+        </div>
       </section>
     </main>
   );

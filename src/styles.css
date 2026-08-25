@@ -426,6 +426,33 @@ p {
   gap: 0;
 }
 
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 2px solid #1b1f1a;
+  padding-bottom: 12px;
+}
+
+.sectionHead h3 {
+  margin: 0;
+}
+
+.sectionHead span {
+  color: #8a8f86;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.planButton {
+  margin: 18px 0 30px;
+  background: #aece36;
+  color: #1b1f1a;
+}
+
 .practice {
   border-bottom: 1px solid #dfddd3;
   padding: 18px 0;
@@ -600,7 +627,9 @@ summary {
 .split,
 .buttonRow,
 .toolbar,
-.filters {
+.filters,
+.filterBar,
+.segmented {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -610,13 +639,37 @@ summary {
   justify-content: space-between;
 }
 
-.toolbar {
+.toolbar,
+.filterBar {
   align-items: stretch;
   margin-top: 18px;
 }
 
-.toolbar input {
+.filterBar {
+  position: sticky;
+  top: 62px;
+  z-index: 20;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #1b1f1a;
+  background: #f0eee4;
+  margin: 0;
+  padding: 14px 34px;
+}
+
+.filterBar input {
   max-width: 360px;
+  border-color: #1b1f1a;
+  background: #fff;
+}
+
+.segmented {
+  gap: 0;
+  border: 2px solid #1b1f1a;
+}
+
+.segmented button {
+  border: none;
+  padding: 9px 14px;
 }
 
 .filters {
@@ -625,6 +678,121 @@ summary {
 
 .practiceBank {
   padding: 0 34px 60px;
+}
+
+.shownLabel {
+  align-self: center;
+  color: #5a5f56;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bankTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 2px solid #1b1f1a;
+  padding: 20px 34px 12px;
+}
+
+.bankTitle h2 {
+  font-size: 26px;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.bankTitle span {
+  color: #8a8f86;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bankGrid {
+  display: grid;
+  grid-template-columns: 78px minmax(150px, 0.8fr) minmax(220px, 1.4fr) minmax(140px, 0.9fr) minmax(180px, 1fr);
+  gap: 0 18px;
+  align-items: baseline;
+}
+
+.bankHead {
+  border-bottom: 1px solid #dfddd3;
+  background: #f5f4ec;
+  color: #8a8f86;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  padding: 9px 34px;
+  text-transform: uppercase;
+}
+
+.bankRow {
+  border-bottom: 1px solid #eae8de;
+  padding: 12px 34px;
+}
+
+.bankRow:hover {
+  background: #f5f4ec;
+}
+
+.levelText {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.levelText.deep {
+  color: #2c4636;
+}
+
+.levelText.moderate {
+  color: #5a5f56;
+}
+
+.levelText.gentle {
+  color: #8a8f86;
+}
+
+.categoryText {
+  color: #3d423a;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.keywordCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.keywordChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  background: #eaf2d2;
+  color: #3d5219;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+}
+
+.keywordChip small {
+  color: #6b7a55;
+  font-weight: 700;
+}
+
+.evidenceText {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #5a5f56;
+  font-size: 12.5px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .settingsGrid {
@@ -643,6 +811,93 @@ summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+
+.settingSection {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 0 32px;
+  border-bottom: 2px solid #dfddd3;
+  padding: 28px 34px 32px;
+}
+
+.settingSection h2 {
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.settingSection p {
+  color: #5a5f56;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+
+.settingBody {
+  max-width: 620px;
+}
+
+.statusBox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #f0eee4;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+}
+
+.statusBox strong {
+  color: #3d423a;
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.sliderBlock {
+  border-top: 2px solid #1b1f1a;
+  border-bottom: 1px solid #dfddd3;
+  padding: 18px 0;
+}
+
+.sliderHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sliderHead strong {
+  font-size: 15px;
+}
+
+.sliderHead span {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.rangeLabels {
+  display: flex;
+  justify-content: space-between;
+  color: #8a8f86;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.explainBox {
+  background: #f0eee4;
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+
+.explainBox strong {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .emptyLine {
