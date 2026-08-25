@@ -426,22 +426,55 @@ p {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  gap: 32px;
+  flex-wrap: wrap;
   background: #2c4636;
   color: #fff;
   padding: 26px 34px;
 }
 
 .spanBand h2 {
-  font-size: clamp(40px, 7vw, 72px);
-  letter-spacing: -0.05em;
-  line-height: 0.9;
+  font-size: clamp(38px, 4.4vw, 54px);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
   margin: 0;
 }
 
-.spanBand h3 {
-  font-size: 28px;
-  margin: 0;
+.spanTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.spanTitle span {
+  color: #c9d6c6;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.levelOverride {
+  display: grid;
+  gap: 8px;
+}
+
+.levelOverride > div {
+  display: flex;
+  border: 2px solid #aece36;
+}
+
+.levelOverride button {
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 11px 20px;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+
+.levelOverride button.selected {
+  background: #aece36;
+  color: #1b3327;
 }
 
 .light {
@@ -450,7 +483,7 @@ p {
 
 .contentGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 0;
 }
 
@@ -493,9 +526,18 @@ p {
 }
 
 .planButton {
-  margin: 18px 0 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid #1b1f1a;
   background: #aece36;
   color: #1b1f1a;
+  margin: 18px 0 30px;
+  padding: 12px 18px;
+}
+
+.planButton span:last-child {
+  color: #2c4636;
 }
 
 .practice {
@@ -506,7 +548,7 @@ p {
 .practiceTop {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 0 14px;
   align-items: start;
 }
 
@@ -523,14 +565,39 @@ p {
 }
 
 .slot {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  background: #1b1f1a;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 900;
+  color: #aece36;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.practiceActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.practiceActions button:first-child {
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid #8a8f86;
+  border-radius: 50%;
+  background: none;
+  color: #5a5f56;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+}
+
+.practiceActions button:last-child {
+  border: none;
+  background: none;
+  color: #5a5f56;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  padding: 0;
 }
 
 .pill {
@@ -584,6 +651,7 @@ summary {
 .scoreGrid {
   display: grid;
   gap: 0;
+  margin-top: 4px;
 }
 
 .scoreRow {
@@ -596,14 +664,275 @@ summary {
 }
 
 .bar {
-  height: 8px;
-  background: #dfddd3;
+  height: 14px;
+  background: #eae8de;
 }
 
 .bar i {
   display: block;
   height: 100%;
   background: #aece36;
+}
+
+.inspectorHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 2px solid #1b1f1a;
+  padding-bottom: 12px;
+}
+
+.inspectorHead h3,
+.inspector h3 {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.inspectorHead span {
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.inspector > h3 {
+  border-bottom: 2px solid #1b1f1a;
+  margin-top: 30px;
+  padding-bottom: 12px;
+}
+
+.inspectorHead + .muted,
+.scoreGrid + h3,
+.inspector .meta + h3,
+.habitSignalList + .muted,
+.tagGroup + .tagGroup {
+  margin-top: 12px;
+}
+
+.inspector .meta {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  border-bottom: 1px solid #dfddd3;
+  margin-bottom: 0;
+  padding: 10px 0;
+}
+
+.infoBox {
+  border-left: 2px solid #aece36;
+  background: #f0eee4;
+  padding: 11px 13px;
+}
+
+.infoBox strong {
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.infoBox p {
+  color: #5a5f56;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 5px 0 0;
+}
+
+.swapInfo {
+  border-left-color: #2c4636;
+  margin: 9px 0 10px 50px;
+}
+
+.swapInfo strong {
+  color: #5a5f56;
+  font-size: 10px;
+}
+
+.swapInfo p {
+  color: #3d423a;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 60ch;
+  margin-top: 6px;
+}
+
+.alternativeBox {
+  border: 2px solid #dfddd3;
+  background: #fafaf8;
+  margin: 12px 0 0 50px;
+}
+
+.alternativeBox > div {
+  border-bottom: 1px solid #dfddd3;
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 9px 12px;
+  text-transform: uppercase;
+}
+
+.alternativeBox button {
+  display: block;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #eae8de;
+  background: transparent;
+  color: #1b1f1a;
+  padding: 11px 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+  text-transform: none;
+}
+
+.alternativeBox button:hover {
+  background: #f0eee4;
+}
+
+.alternativeBox p {
+  color: #8a8f86;
+  font-size: 13px;
+  margin: 0;
+  padding: 11px 12px;
+}
+
+.habitSignalList {
+  display: grid;
+  gap: 0;
+}
+
+.habitSignal {
+  border-bottom: 1px solid #dfddd3;
+  padding: 12px 0;
+}
+
+.habitSignal > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.habitSignal strong {
+  font-size: 13.5px;
+}
+
+.habitSignal > div:first-child span {
+  color: #5a5f56;
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.habitSignal > div:nth-child(2) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.habitSignal small {
+  color: #5a5f56;
+  font-size: 12.5px;
+}
+
+.miniBar {
+  display: block;
+  height: 8px;
+  background: #eae8de;
+  margin-top: 8px;
+}
+
+.miniBar i {
+  display: block;
+  height: 100%;
+  background: #2c4636;
+}
+
+.tagGroup {
+  display: grid;
+  gap: 7px;
+}
+
+.tagGroup > span {
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.tagGroup .tagList span {
+  border: 1.5px solid #dfddd3;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.suggestedCircle {
+  border-top: 2px solid #1b1f1a;
+  padding: 26px 34px 40px;
+}
+
+.suggestedCircle .sectionHead {
+  border-bottom-color: #dfddd3;
+}
+
+.circleMemberList {
+  display: grid;
+  gap: 0;
+  max-width: 900px;
+  margin-top: 4px;
+}
+
+.circleMember {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #dfddd3;
+  padding: 12px 0;
+}
+
+.circleMember > span {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: #f0eee4;
+  color: #2c4636;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.circleMember div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+}
+
+.circleMember strong {
+  font-size: 15px;
+}
+
+.circleMember small {
+  color: #5a5f56;
+  font-size: 12.5px;
+}
+
+.circleMember em {
+  color: #8a8f86;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .muted {

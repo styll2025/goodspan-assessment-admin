@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_SETTINGS,
+  HABIT_MAX,
   HABIT_LABEL,
   HABIT_CATEGORY_MAP,
   CHALLENGE_KEYWORDS,
@@ -19,13 +20,23 @@ import {
   suggestCircleFor,
 } from './lib/matching';
 import { generateSampleRespondents } from './lib/sampleData';
-import type { Challenge, Circle, Level, MatchingSettings, Pillar, Plan, Respondent } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent } from './types';
 
 type Tab = 'respondents' | 'circles' | 'library' | 'settings';
 
 const ADMIN_PASSCODE = 'goodspan-circle-2026';
 const DEFAULT_SHEET_URL =
   'https://script.google.com/macros/s/AKfycbxu69Ns0-WMnGqefvoJhY0WHw-4wAl1SikHjBqQywYzN_55oWRiVFibH6e5wEriSmJH/exec';
+const HABIT_KEYS: HabitKey[] = [
+  'sleepConsistency',
+  'sleepWindDown',
+  'movementFrequency',
+  'structuredExercise',
+  'mealComposition',
+  'eatingRhythm',
+  'calmPractice',
+  'socialConnection',
+];
 
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('gs_admin_authed') === 'true');
@@ -145,7 +156,7 @@ export default function App() {
     );
   }
 
-  const isPlanMode = tab === 'respondents' && planOpen && selected && selectedPlan;
+  const isPlanMode = Boolean(tab === 'respondents' && planOpen && selected && selectedPlan);
 
   return (
     <div className="appShell">
@@ -297,6 +308,27 @@ function RespondentPlan({
   onOpenPlan: () => void;
 }) {
   const scores = habitScores(respondent);
+  const [infoOpen, setInfoOpen] = useState<string | null>(null);
+  const [swapOpen, setSwapOpen] = useState<string | null>(null);
+  const circleMembers = circle?.members.filter((member) => member.id !== respondent.id) ?? [];
+  const circleCaption =
+    circle && circle.members.length
+      ? `${circle.members.length} people · ${circle.city || respondent.location || 'Location unknown'}`
+      : `Needs more people on ${PILLAR_LABEL[plan.pillarId]}`;
+  const goalRows: Array<[string, string]> = [
+    ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : PILLAR_LABEL[respondent.focusArea]],
+    ['Time available', labelForTime(respondent.timePerDay)],
+    ['Challenges', respondent.mainChallenges.length ? respondent.mainChallenges.join(', ') : '-'],
+    ['Motivations', respondent.motivations.length ? respondent.motivations.join(', ') : '-'],
+  ];
+  const profileRows: Array<[string, string]> = [
+    ['Age range', respondent.ageBand],
+    ['Work', respondent.workStatus || '-'],
+    ['Home life', respondent.homeLife || '-'],
+    ['Gender', respondent.genderSelfDescribe || respondent.gender || '-'],
+    ['Personality', title(respondent.personality)],
+    ['Location', respondent.location || '-'],
+  ];
 
   return (
     <>
@@ -313,11 +345,20 @@ function RespondentPlan({
       <section className="spanBand">
         <div>
           <p className="eyebrow light">Recommended Span</p>
-          <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
+          <div className="spanTitle">
+            <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
+            <span>{title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
+          </div>
         </div>
-        <div>
-          <p className="eyebrow light">Intensity</p>
-          <h3>{title(plan.levelId)}</h3>
+        <div className="levelOverride">
+          <p className="eyebrow light">Intensity override</p>
+          <div>
+            {(['gentle', 'moderate', 'deep'] as Level[]).map((level) => (
+              <button key={level} className={level === plan.levelId ? 'selected' : ''} type="button">
+                {title(level)}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -328,47 +369,97 @@ function RespondentPlan({
               <h3>Five personalised practices</h3>
               <span>{PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
             </div>
-            <button className="planButton" onClick={onOpenPlan}>Generate personalised plan →</button>
           </div>
+          <button className="planButton" onClick={onOpenPlan}>
+            <span>Generate personalised plan</span>
+            <span>→</span>
+          </button>
           <div className="practiceList">
-            {plan.items.map((item, index) => (
-              <article key={`${item.category}-${item.practice.text}`} className="practice">
-                <div className="practiceTop">
-                  <span className="slot">{index + 1}</span>
-                  <div>
-                    <p className="eyebrow">{item.category}</p>
-                    <h4>{item.practice.text}</h4>
+            {plan.items.map((item, index) => {
+              const itemKey = `${index}-${item.category}-${item.practice.text}`;
+              return (
+                <article key={itemKey} className="practice">
+                  <div className="practiceTop">
+                    <span className="slot">{index + 1}</span>
+                    <div>
+                      <p className="eyebrow">{item.category}</p>
+                      <h4>{item.practice.text}</h4>
+                    </div>
+                    <span className="practiceActions">
+                      <button
+                        title="How this slot was filled"
+                        type="button"
+                        onClick={() => setInfoOpen(infoOpen === itemKey ? null : itemKey)}
+                      >
+                        i
+                      </button>
+                      <button
+                        title="Swap replaces this practice with a different one from the same category, at the same intensity."
+                        type="button"
+                        onClick={() => setSwapOpen(swapOpen === itemKey ? null : itemKey)}
+                      >
+                        Swap
+                      </button>
+                    </span>
                   </div>
+                  {infoOpen === itemKey && (
+                    <div className="infoBox swapInfo">
+                      <strong>How this slot was filled, and what Swap does</strong>
+                      <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the respondent's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
+                      <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this respondent only and leaves the Practice Bank untouched.</p>
+                    </div>
+                  )}
                   <Pill label={reasonLabel(item.reason)} />
-                </div>
-                {item.practice.why && <p>{item.practice.why}</p>}
-                {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges).length > 0 && (
-                  <p className="muted">
-                    Matched:{' '}
-                    {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges)
-                      .map((term) => `${term.keyword} (${term.challenge})`)
-                      .join(', ')}
-                  </p>
-                )}
-                {item.practice.references.length > 0 && (
-                  <details>
-                    <summary>Evidence</summary>
-                    {item.practice.evidence && <p>{item.practice.evidence}</p>}
-                    <ul>
-                      {item.practice.references.map((reference) => (
-                        <li key={reference}>{reference}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </article>
-            ))}
+                  {item.practice.why && <p>{item.practice.why}</p>}
+                  {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges).length > 0 && (
+                    <p className="muted">
+                      Matched:{' '}
+                      {matchedChallengeTerms(item.practice, item.category, respondent.mainChallenges)
+                        .map((term) => `${term.keyword} (${term.challenge})`)
+                        .join(', ')}
+                    </p>
+                  )}
+                  {item.practice.references.length > 0 && (
+                    <details>
+                      <summary>Evidence</summary>
+                      {item.practice.evidence && <p>{item.practice.evidence}</p>}
+                      <ul>
+                        {item.practice.references.map((reference) => (
+                          <li key={reference}>{reference}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {swapOpen === itemKey && (
+                    <div className="alternativeBox">
+                      <div>Alternatives in {item.category}</div>
+                      {item.alternatives.length ? (
+                        item.alternatives.map((alternative) => (
+                          <button key={alternative.text} type="button">{alternative.text}</button>
+                        ))
+                      ) : (
+                        <p>No alternatives at this intensity in this category.</p>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </div>
 
         <aside className="inspector">
-          <h3>Pillar match</h3>
+          <div className="inspectorHead">
+            <h3>Pillar match</h3>
+            <span>Score</span>
+          </div>
           <p className="muted">Habit answers are normalized so weaker current habits score higher, then challenge and stated-goal weights are applied.</p>
+          {plan.overridden && (
+            <div className="infoBox">
+              <strong>Stated goal override active</strong>
+              <p>Scores below are shown for reference only; they did not decide the outcome.</p>
+            </div>
+          )}
           <div className="scoreGrid">
             {PILLARS.map((pillar) => (
               <div key={pillar} className="scoreRow">
@@ -381,24 +472,71 @@ function RespondentPlan({
             ))}
           </div>
 
-          <h3>Profile</h3>
-          <Meta label="Age range" value={respondent.ageBand} />
-          <Meta label="Work" value={respondent.workStatus || '-'} />
-          <Meta label="Home life" value={respondent.homeLife || '-'} />
-          <Meta label="Gender" value={respondent.gender || '-'} />
-          <Meta label="Personality" value={title(respondent.personality)} />
-          <h3>Motivations</h3>
-          <TagList items={respondent.motivations} empty="No motivations selected" />
-          <h3>Main challenges</h3>
-          <TagList items={respondent.mainChallenges} empty="No challenges selected" />
+          <h3>Goals</h3>
+          {goalRows.map(([label, value]) => (
+            <Meta key={label} label={label} value={value} />
+          ))}
 
-          <h3>Circle</h3>
-          <p className="muted">
-            {circle && circle.members.length
-              ? `${circle.members.length} other${circle.members.length === 1 ? '' : 's'} in this proposed Circle: ${circle.members.map((member) => member.preferredName).join(', ')}`
-              : `No circle yet - needs more people in this city on ${PILLAR_LABEL[plan.pillarId]}.`}
-          </p>
+          <h3>Habit signals</h3>
+          <div className="habitSignalList">
+            {HABIT_KEYS.map((habit) => {
+              const score = normalizedHabitScore(respondent, habit);
+              const pillar = pillarForHabit(habit);
+              return (
+                <div className="habitSignal" key={habit}>
+                  <div>
+                    <strong>{HABIT_LABEL[habit]}</strong>
+                    <span>{score.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <Pill label={PILLAR_LABEL[pillar]} tone={pillar} />
+                    <small>Answer {respondent[habit]}</small>
+                  </div>
+                  <span className="miniBar"><i style={{ width: `${Math.max(4, Math.min(100, score * 100))}%` }} /></span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted">Worse current habits score higher, since they leave the most room to improve. The two questions per Span are averaged into the Pillar match above.</p>
+
+          <h3>Profile</h3>
+          {profileRows.map(([label, value]) => (
+            <Meta key={label} label={label} value={value} />
+          ))}
+          <div className="tagGroup">
+            <span>Motivations</span>
+            <TagList items={respondent.motivations} empty="-" />
+          </div>
+          <div className="tagGroup">
+            <span>Main challenges</span>
+            <TagList items={respondent.mainChallenges} empty="-" />
+          </div>
         </aside>
+      </section>
+
+      <section className="suggestedCircle">
+        <div className="sectionHead">
+          <div>
+            <h3>Suggested Circle</h3>
+          </div>
+          <span>{circleCaption}</span>
+        </div>
+        {circleMembers.length === 0 ? (
+          <p className="muted">Not enough respondents share this Span yet to suggest a Circle. Load more responses or sample data.</p>
+        ) : (
+          <div className="circleMemberList">
+            {circleMembers.map((member) => (
+              <div className="circleMember" key={member.id}>
+                <span>{initials(member.preferredName)}</span>
+                <div>
+                  <strong>{member.preferredName}</strong>
+                  <small>{member.ageBand} · {member.personality} · {member.workStatus || 'Work not stated'}</small>
+                </div>
+                <em>{member.location || '-'}</em>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </>
   );
@@ -443,7 +581,7 @@ function PlanDocument({
           </div>
           <div className="planHeroRule" />
           <h1>Your Personal Span Plan</h1>
-          <p className="hello">Hi {firstName},</p>
+          <p className="hello">{`Hi ${firstName},`}</p>
           <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
           <div className="planHeroMeta">
             <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
@@ -456,7 +594,7 @@ function PlanDocument({
       <section className="planBody" data-planbody>
         <PlanSection number="1" title="Your starting point">
           <p>Every GoodSpan journey starts with a small number of practices chosen to fit where you are right now.</p>
-          <p>Rather than trying to change everything at once, we've identified a set of practices that can have a meaningful positive impact on your wellbeing.</p>
+          <p>Rather than trying to change everything at once, we've identified a set of practices that we believe can have a meaningful positive impact on your wellbeing. Small, consistent changes can create benefits that ripple into other parts of life.</p>
         </PlanSection>
 
         <PlanSection number="2" title="Your Longevity Pillar">
@@ -468,7 +606,8 @@ function PlanDocument({
 
         <PlanSection number="3" title="Your personalised practices">
           <p>These five practices are designed around you and your current situation.</p>
-          <p>They are intended to help you build small, sustainable habits that fit your confidence, goals and everyday life.</p>
+          <p>They are intended to help you build small, sustainable habits that fit your confidence, goals and everyday life. You don't need to do every practice every day. Instead, use them as your daily toolkit, choosing the ones that make sense for you as you build consistency.</p>
+          <p>Throughout the journey, your Circle will be alongside you — sharing experiences, encouraging one another, checking in, and taking part in some practices together.</p>
           <div className="sharedQuote">Small steps are easier, and often more meaningful, when they're shared.</div>
           <div className="planPracticeList">
             {plan.items.map((item, index) => (
@@ -491,13 +630,15 @@ function PlanDocument({
         </PlanSection>
 
         <PlanSection number="4" title="Make it yours">
-          <p>This is your starting plan, not a fixed one. If a practice doesn't feel right, you can request an easier or more challenging version, or replace it with a different practice that's a better fit.</p>
+          <p>This is your starting plan, not a fixed one. If a practice doesn't feel right, you can request an easier or more challenging version, or replace it with a different practice that's a better fit. The goal is to find a routine you can stick with over the next 30 days.</p>
         </PlanSection>
 
         <PlanSection number="5" title="What happens next">
           <p>Your first Span is one step in your broader GoodSpan journey.</p>
           <p>We'll get started on the 14th of September.</p>
-          <p>Once your Span begins, your five personalised practices will guide your journey. You won't do it alone: soon, we'll introduce you to your Span Coach and Circle.</p>
+          <p>Once your Span begins, your five personalised practices will guide your journey. As you go, you can adjust them and we'll continue tailoring them based on your feedback.</p>
+          <p>You won't do it alone. Soon, we'll introduce you to your Span Coach and Circle, a small group of people taking the same journey. You'll encourage one another, share experiences and take part in activities throughout the month.</p>
+          <p>The journey concludes with a closing Gathering, where every Circle comes together to celebrate the milestone and reflect on what they've achieved.</p>
         </PlanSection>
 
         <section className="beforeBegin">
@@ -531,6 +672,29 @@ function TagList({ items, empty }: { items: string[]; empty: string }) {
       {items.map((item) => <span key={item}>{item}</span>)}
     </div>
   );
+}
+
+function normalizedHabitScore(respondent: Respondent, habit: HabitKey) {
+  const max = HABIT_MAX[habit];
+  const value = Number(respondent[habit]);
+  if (!Number.isFinite(value) || max <= 0) return 0;
+  return Math.max(0, Math.min(1, (max - value) / max));
+}
+
+function pillarForHabit(habit: HabitKey): Pillar {
+  if (habit === 'sleepConsistency' || habit === 'sleepWindDown') return 'sleep';
+  if (habit === 'movementFrequency' || habit === 'structuredExercise') return 'move';
+  if (habit === 'mealComposition' || habit === 'eatingRhythm') return 'eat';
+  return 'mind';
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || '-';
 }
 
 function CirclesView({
