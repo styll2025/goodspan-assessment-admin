@@ -2,10 +2,14 @@ import { useMemo, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
   HABIT_LABEL,
+  HABIT_CATEGORY_MAP,
   CHALLENGE_KEYWORDS,
+  PILLAR_BOOST_MAP,
   PILLAR_LABEL,
   PILLARS,
   PRACTICES,
+  SOCIAL_CATEGORIES,
+  TIME_TO_LEVEL,
   autoCluster,
   buildPlan,
   habitScores,
@@ -554,6 +558,31 @@ function SettingsView({
   onLoadJson: () => void;
   onSample: () => void;
 }) {
+  const timeRows = (Object.keys(TIME_TO_LEVEL) as Array<keyof typeof TIME_TO_LEVEL>).map((time) => ({
+    time,
+    label: labelForTime(time),
+    level: TIME_TO_LEVEL[time],
+  }));
+  const traitRows = [
+    ['Age band', 'Counts once for each member already in the same age band.'],
+    ['Gender', 'Counts once for each member with the same gender answer.'],
+    ['Personality', 'Counts once for each member of the same type.'],
+    ['Work situation', 'Counts once for each member with the same work situation.'],
+    ['Home life', 'Counts once for each member with the same home-life answer.'],
+  ];
+  const habitRows = PILLARS.flatMap((pillar) =>
+    Object.entries(HABIT_CATEGORY_MAP[pillar]).map(([habit, categories]) => ({
+      pillar,
+      habit: habit as keyof typeof HABIT_LABEL,
+      categories: categories ?? [],
+    })),
+  );
+  const challengeRows = Object.keys(CHALLENGE_KEYWORDS).map((challenge) => ({
+    challenge: challenge as Challenge,
+    pillar: PILLAR_BOOST_MAP[challenge as Challenge],
+    keywords: CHALLENGE_KEYWORDS[challenge as Challenge],
+  }));
+
   return (
     <main className="page">
       <section className="pageIntro">
@@ -608,9 +637,39 @@ function SettingsView({
             </div>
             <p>At 0%, the Span comes from habit answers and stated challenges. Moving the slider adds a boost toward their stated goal. At 100%, their stated goal is used directly.</p>
           </div>
+          <div className="subBlock">
+            <strong>Time to level</strong>
+            <p>Level comes straight from stated daily time, with no scoring. Admins can still override it per respondent.</p>
+            {timeRows.map((row) => (
+              <div className="mappingRow" key={row.time}>
+                <span>{row.label}</span>
+                <Pill label={title(row.level)} />
+              </div>
+            ))}
+          </div>
+          <div className="toggleInfo">
+            <div>
+              <strong>Circle-guarantee slot</strong>
+              <p>Assigns a slot outright to the best-scoring Circle-facing category, before anything else is ranked. Where a pillar has two such categories, only the stronger one is assigned; the other competes on merit.</p>
+            </div>
+            <Pill label="On" />
+          </div>
           <div className="explainBox">
             <strong>How the five slots are chosen</strong>
             <p>First, the best-scoring Circle-facing category is given a slot outright. Then remaining categories are ranked on their best practice's keyword score plus weak-habit priority.</p>
+            <p>This is what makes two people on the same Span differ: bad bedtime consistency pulls in Circadian Alignment, a poor wind-down pulls in Wind Down.</p>
+          </div>
+          <SettingMetric label="Weak-habit priority" value="x50" text="Multiplies how weak that specific habit answer is, and adds the result to the category it maps to." />
+          <SettingMetric label="Challenge boost" value="+0.15" text="Added to a pillar score for every stated main challenge that maps to it." />
+          <SettingMetric label="Points per keyword match" value="+5" text="Decides which practice in each category is picked, and which fill leftover slots." />
+          <div className="subBlock">
+            <strong>Circle-facing categories</strong>
+            {PILLARS.map((pillar) => (
+              <div className="mappingRow" key={pillar}>
+                <span>{PILLAR_LABEL[pillar]}</span>
+                <span>{SOCIAL_CATEGORIES[pillar].join(', ')}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -621,6 +680,22 @@ function SettingsView({
           <p>Circles are grouped by same Span and exact city, then mixed for diversity across age, gender, personality, work and home life.</p>
         </div>
         <div className="settingBody">
+          <div className="subBlock">
+            <strong>How much each trait matters</strong>
+            <p>Use these numbers to control how strongly each trait affects mixing.</p>
+            <div className="explainGrid">
+              <span>Higher number:</span><p>the system works harder to avoid putting similar people together.</p>
+              <span>0:</span><p>the system ignores that trait.</p>
+              <span>Same number for all traits:</span><p>all traits have the same importance.</p>
+            </div>
+          </div>
+          {traitRows.map(([label, desc]) => (
+            <SettingMetric key={label} label={label} value="1 pt" text={desc} />
+          ))}
+          <div className="subBlock">
+            <strong>Group size, in people</strong>
+            <p>The target is used to decide how many groups to make. Groups are flagged if they fall outside the minimum or maximum.</p>
+          </div>
           <div className="numberGrid">
             <NumberInput label="Minimum size" value={settings.minCircleSize} onChange={(v) => onSettings({ ...settings, minCircleSize: v })} />
             <NumberInput label="Target size" value={settings.targetCircleSize} onChange={(v) => onSettings({ ...settings, targetCircleSize: v })} />
@@ -630,16 +705,78 @@ function SettingsView({
             <strong>Higher diversity</strong>
             <p>The system places each person into the Circle where they are least similar to the people already in it. Smaller groups are flagged as needing more people.</p>
           </div>
+          <button onClick={() => onSettings(DEFAULT_SETTINGS)}>Restore default weights</button>
         </div>
       </section>
 
       <section className="settingSection">
         <div>
-          <h2>Test data and import</h2>
-          <p>Load realistic sample respondents or paste a JSON array while piloting the admin workflow.</p>
+          <h2>Habits and goals</h2>
+          <p>The three things a respondent tells us do different work. Habits decide the Span and category priority. The stated goal nudges the Span. Challenges pick the practice inside each category.</p>
         </div>
         <div className="settingBody">
-          <button onClick={onSample}>Load sample data</button>
+          <div className="logicTable">
+            <span>Habits</span><p>Averaged per Span to decide the match, and used question by question to prioritise categories.</p>
+            <span>Goal</span><p>Adds the stated-goal influence to that Span's score. It never picks a practice on its own.</p>
+            <span>Challenges</span><p>Boost a Span, and match keywords to choose the practice within each category.</p>
+          </div>
+          <p className="muted">
+            The weights behind it: how weak the answer is (0-1) is multiplied by the weak-habit priority of <strong>x50</strong>, and keyword matches against stated challenges add <strong>+5 points</strong> each.
+          </p>
+          {habitRows.map((row) => (
+            <div className="habitMapRow" key={`${row.pillar}-${row.habit}`}>
+              <div>
+                <Pill label={PILLAR_LABEL[row.pillar]} tone={row.pillar} />
+                <strong>{HABIT_LABEL[row.habit]}</strong>
+              </div>
+              <span>{row.categories.join(', ')}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="settingSection">
+        <div>
+          <h2>Challenges, keywords and pillar boosts</h2>
+          <p>Every practice gets +5 points for every keyword match between a respondent's selected challenges and the practice text or category. Matching is plain lowercase substring matching.</p>
+        </div>
+        <div className="settingBody">
+          <SettingMetric label="Points per keyword match" value="+5" text="Each matching keyword adds five points to that practice for that respondent." />
+          {challengeRows.map((row) => (
+            <div className="challengeRule" key={row.challenge}>
+              <div className="challengeHead">
+                <strong>{row.challenge}</strong>
+                <Pill label={PILLAR_LABEL[row.pillar]} tone={row.pillar} />
+                <span>{row.keywords.length} terms</span>
+              </div>
+              <div className="keywordCell">
+                {row.keywords.map((keyword) => <span className="keywordChip" key={keyword}>{keyword}</span>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="settingSection">
+        <div>
+          <h2>Testing and reset</h2>
+          <p>Sample respondents let you exercise the matching logic without live data. Resetting clears every manual override you have made this session.</p>
+        </div>
+        <div className="settingBody">
+          <div className="toggleInfo">
+            <div>
+              <strong>Load sample data</strong>
+              <p>Replaces the current list with 30 generated respondents, grouped into city and Span cohorts so Circles can actually form.</p>
+            </div>
+            <button onClick={onSample}>Load sample</button>
+          </div>
+          <div className="toggleInfo">
+            <div>
+              <strong>Reset overrides</strong>
+              <p>No manual swaps or intensity overrides yet.</p>
+            </div>
+            <button onClick={() => onSettings(DEFAULT_SETTINGS)}>Reset</button>
+          </div>
           <label>
             Paste respondent JSON
             <textarea value={jsonInput} onChange={(event) => onJsonInput(event.target.value)} placeholder="[{...}]" />
@@ -656,6 +793,18 @@ function Meta({ label, value }: { label: string; value: string }) {
     <div className="meta">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function SettingMetric({ label, value, text }: { label: string; value: string; text: string }) {
+  return (
+    <div className="settingMetric">
+      <div>
+        <strong>{label}</strong>
+        <p>{text}</p>
+      </div>
+      <span>{value}</span>
     </div>
   );
 }

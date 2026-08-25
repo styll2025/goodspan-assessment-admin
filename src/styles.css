@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&display=swap');
+
 :root {
   background: #fafaf8;
   color: #1b1f1a;
@@ -10,7 +12,46 @@
 
 body {
   margin: 0;
+  padding: 0;
   background: #fafaf8;
+  font-size: 14px;
+}
+
+a {
+  color: #2c4636;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: #1b1f1a;
+}
+
+::selection {
+  background: #aece36;
+  color: #1b1f1a;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #aece36;
+  outline-offset: 2px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9a9f95;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dfddd3;
 }
 
 button,
@@ -95,7 +136,7 @@ p {
 .brand div,
 .brandCompact strong {
   color: #1b1f1a;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
   font-size: 38px;
   font-weight: 500;
   letter-spacing: -0.015em;
@@ -165,7 +206,7 @@ p {
   display: flex;
   min-width: 220px;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .brandCompact strong {
@@ -184,14 +225,18 @@ p {
   display: flex;
   align-items: stretch;
   justify-content: center;
+  height: 100%;
 }
 
 .navButton {
   border: none;
-  border-left: 1px solid #dfddd3;
   background: #fff;
   color: #5a5f56;
-  min-width: 108px;
+  min-width: auto;
+  padding: 0 11px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
 }
 
 .navButton.active {
@@ -900,6 +945,131 @@ summary {
   text-transform: uppercase;
 }
 
+.subBlock {
+  border-bottom: 1px solid #dfddd3;
+  padding: 18px 0;
+}
+
+.subBlock > strong,
+.toggleInfo strong,
+.settingMetric strong,
+.challengeRule strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mappingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 16px;
+  align-items: center;
+  border-bottom: 1px solid #eae8de;
+  padding: 9px 0;
+}
+
+.mappingRow > span:first-child {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.toggleInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #dfddd3;
+  flex-wrap: wrap;
+  padding: 16px 0;
+}
+
+.settingMetric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 20px;
+  align-items: center;
+  border-bottom: 1px solid #dfddd3;
+  padding: 14px 0;
+}
+
+.settingMetric > span {
+  font-size: 17px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.explainGrid,
+.logicTable {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 10px;
+  margin-top: 10px;
+}
+
+.explainGrid span,
+.logicTable span {
+  color: #1b1f1a;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.explainGrid p,
+.logicTable p {
+  margin: 0;
+}
+
+.logicTable {
+  border-top: 2px solid #1b1f1a;
+  margin-bottom: 18px;
+}
+
+.logicTable span,
+.logicTable p {
+  border-bottom: 1px solid #dfddd3;
+  padding: 12px 0;
+}
+
+.habitMapRow {
+  border-bottom: 1px solid #dfddd3;
+  padding: 13px 0;
+}
+
+.habitMapRow > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.habitMapRow strong {
+  font-size: 14px;
+}
+
+.habitMapRow > span {
+  display: block;
+  color: #5a5f56;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.challengeRule {
+  border-bottom: 1px solid #dfddd3;
+  padding: 14px 0;
+}
+
+.challengeHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.challengeHead > span:last-child {
+  color: #8a8f86;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .emptyLine {
   color: #5a5f56;
   padding: 40px 34px;
@@ -935,5 +1105,31 @@ summary {
   .inspector {
     border-left: none;
     border-top: 2px solid #dfddd3;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+
+  [data-noprint] {
+    display: none !important;
+  }
+
+  h1,
+  h2 {
+    break-after: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
