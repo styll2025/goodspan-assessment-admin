@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   DEFAULT_SETTINGS,
   HABIT_LABEL,
@@ -33,6 +34,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('respondents');
   const [respondents, setRespondents] = useState<Respondent[]>([]);
   const [selectedId, setSelectedId] = useState('');
+  const [planOpen, setPlanOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [settings, setSettings] = useState<MatchingSettings>(DEFAULT_SETTINGS);
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
@@ -103,6 +105,7 @@ export default function App() {
     setRespondents(next);
     setSelectedId(next[0]?.id ?? '');
     setSearch('');
+    setPlanOpen(false);
     setStatus(nextStatus);
   }
 
@@ -142,28 +145,43 @@ export default function App() {
     );
   }
 
+  const isPlanMode = tab === 'respondents' && planOpen && selected && selectedPlan;
+
   return (
     <div className="appShell">
-      <header className="topbar">
-        <div className="brandCompact">
-          <strong>The Good Span</strong>
-          <span>Practice Matcher</span>
-        </div>
-        <nav>
-          {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
-            <button key={item} className={tab === item ? 'active navButton' : 'navButton'} onClick={() => setTab(item)}>
-              {item === 'library' ? 'Library' : title(item)}
-            </button>
-          ))}
-        </nav>
-        <div className="topStatus">
-          <span className="dot" />
-          <span>{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
-          <button className="textButton" onClick={logout}>Log out</button>
-        </div>
-      </header>
+      {!isPlanMode && (
+        <header className="topbar">
+          <div className="brandCompact">
+            <strong>The Good Span</strong>
+            <span>Practice Matcher</span>
+          </div>
+          <nav>
+            {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
+              <button
+                key={item}
+                className={tab === item ? 'active navButton' : 'navButton'}
+                onClick={() => {
+                  setTab(item);
+                  setPlanOpen(false);
+                }}
+              >
+                {item === 'library' ? 'Library' : title(item)}
+              </button>
+            ))}
+          </nav>
+          <div className="topStatus">
+            <span className="dot" />
+            <span>{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
+            <button className="textButton" onClick={logout}>Log out</button>
+          </div>
+        </header>
+      )}
 
-      {tab === 'respondents' && (
+      {tab === 'respondents' && planOpen && selected && selectedPlan && (
+        <PlanDocument respondent={selected} plan={selectedPlan} onBack={() => setPlanOpen(false)} />
+      )}
+
+      {tab === 'respondents' && !planOpen && (
         <section className="respondentPage">
           <aside className="sidebar">
             <div className="sidebarSearch">
@@ -186,7 +204,10 @@ export default function App() {
                 <button
                   key={respondent.id}
                   className={respondent.id === selected?.id ? 'person selected' : 'person'}
-                  onClick={() => setSelectedId(respondent.id)}
+                    onClick={() => {
+                      setSelectedId(respondent.id);
+                      setPlanOpen(false);
+                    }}
                 >
                   <span className="personTop">
                     <strong>{respondent.preferredName || 'Unnamed'}</strong>
@@ -204,7 +225,7 @@ export default function App() {
 
           <main className="detailPane">
             {selected && selectedPlan ? (
-              <RespondentPlan respondent={selected} plan={selectedPlan} circle={selectedCircle} />
+              <RespondentPlan respondent={selected} plan={selectedPlan} circle={selectedCircle} onOpenPlan={() => setPlanOpen(true)} />
             ) : (
               <NoRespondents onSample={loadSamples} />
             )}
@@ -268,10 +289,12 @@ function RespondentPlan({
   respondent,
   plan,
   circle,
+  onOpenPlan,
 }: {
   respondent: Respondent;
   plan: Plan;
   circle: Circle | null;
+  onOpenPlan: () => void;
 }) {
   const scores = habitScores(respondent);
 
@@ -305,7 +328,7 @@ function RespondentPlan({
               <h3>Five personalised practices</h3>
               <span>{PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
             </div>
-            <button className="planButton">Generate personalised plan →</button>
+            <button className="planButton" onClick={onOpenPlan}>Generate personalised plan →</button>
           </div>
           <div className="practiceList">
             {plan.items.map((item, index) => (
@@ -364,6 +387,10 @@ function RespondentPlan({
           <Meta label="Home life" value={respondent.homeLife || '-'} />
           <Meta label="Gender" value={respondent.gender || '-'} />
           <Meta label="Personality" value={title(respondent.personality)} />
+          <h3>Motivations</h3>
+          <TagList items={respondent.motivations} empty="No motivations selected" />
+          <h3>Main challenges</h3>
+          <TagList items={respondent.mainChallenges} empty="No challenges selected" />
 
           <h3>Circle</h3>
           <p className="muted">
@@ -374,6 +401,135 @@ function RespondentPlan({
         </aside>
       </section>
     </>
+  );
+}
+
+function PlanDocument({
+  respondent,
+  plan,
+  onBack,
+}: {
+  respondent: Respondent;
+  plan: Plan;
+  onBack: () => void;
+}) {
+  const firstName = respondent.preferredName.split(/\s+/)[0] || 'there';
+  const spanWhy =
+    plan.overridden
+      ? `Your recommended longevity pillar for this Span is ${PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
+      : `Your recommended longevity pillar for this Span is ${PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
+  const challengeDetail = respondent.mainChallenges.length
+    ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
+    : 'Your practices are tuned mainly from your habit answers and stated focus.';
+
+  return (
+    <main className="planDoc">
+      <div className="planToolbar" data-noprint>
+        <button onClick={onBack}>← Back to respondent</button>
+        <div>
+          <span>{respondent.preferredName || 'Unnamed'} · {PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
+          <button className="primary" onClick={() => window.print()}>Download Plan</button>
+        </div>
+      </div>
+
+      <section className="planHero" data-planhero>
+        <div>
+          <div className="planHeroTop">
+            <strong>The Good Span</strong>
+            <div>
+              <span>{PILLAR_LABEL[plan.pillarId]} Span</span>
+              <span>{title(plan.levelId)} · 30 days</span>
+            </div>
+          </div>
+          <div className="planHeroRule" />
+          <h1>Your Personal Span Plan</h1>
+          <p className="hello">Hi {firstName},</p>
+          <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
+          <div className="planHeroMeta">
+            <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
+            <Meta label="Span" value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)}`} />
+            <Meta label="Starts" value="14 September" />
+          </div>
+        </div>
+      </section>
+
+      <section className="planBody" data-planbody>
+        <PlanSection number="1" title="Your starting point">
+          <p>Every GoodSpan journey starts with a small number of practices chosen to fit where you are right now.</p>
+          <p>Rather than trying to change everything at once, we've identified a set of practices that can have a meaningful positive impact on your wellbeing.</p>
+        </PlanSection>
+
+        <PlanSection number="2" title="Your Longevity Pillar">
+          <div className="planCallout">
+            <p>{spanWhy}</p>
+            <p>{challengeDetail}</p>
+          </div>
+        </PlanSection>
+
+        <PlanSection number="3" title="Your personalised practices">
+          <p>These five practices are designed around you and your current situation.</p>
+          <p>They are intended to help you build small, sustainable habits that fit your confidence, goals and everyday life.</p>
+          <div className="sharedQuote">Small steps are easier, and often more meaningful, when they're shared.</div>
+          <div className="planPracticeList">
+            {plan.items.map((item, index) => (
+              <article className="planPractice" key={`${item.category}-${item.practice.text}`} data-plancard>
+                <span>{index + 1}</span>
+                <div>
+                  <p className="eyebrow">{item.category}</p>
+                  <h3>{item.practice.text}</h3>
+                  {item.practice.why && <p>{item.practice.why}</p>}
+                  {item.practice.evidence && (
+                    <div className="planEvidence">
+                      <strong>The Evidence</strong>
+                      <p>{item.practice.evidence}</p>
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </PlanSection>
+
+        <PlanSection number="4" title="Make it yours">
+          <p>This is your starting plan, not a fixed one. If a practice doesn't feel right, you can request an easier or more challenging version, or replace it with a different practice that's a better fit.</p>
+        </PlanSection>
+
+        <PlanSection number="5" title="What happens next">
+          <p>Your first Span is one step in your broader GoodSpan journey.</p>
+          <p>We'll get started on the 14th of September.</p>
+          <p>Once your Span begins, your five personalised practices will guide your journey. You won't do it alone: soon, we'll introduce you to your Span Coach and Circle.</p>
+        </PlanSection>
+
+        <section className="beforeBegin">
+          <div className="planSectionTitle">
+            <span>6</span>
+            <h2>Before you begin</h2>
+          </div>
+          <p>Good Span is designed to support healthy habits and wellbeing. It isn't a substitute for medical advice, diagnosis or treatment. If you have a diagnosed health condition or concerns about making lifestyle changes, please speak with a qualified healthcare professional before starting.</p>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function PlanSection({ number, title: heading, children }: { number: string; title: string; children: ReactNode }) {
+  return (
+    <section className="planSection">
+      <div className="planSectionTitle">
+        <span>{number}</span>
+        <h2>{heading}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function TagList({ items, empty }: { items: string[]; empty: string }) {
+  if (!items.length) return <p className="muted">{empty}</p>;
+  return (
+    <div className="tagList">
+      {items.map((item) => <span key={item}>{item}</span>)}
+    </div>
   );
 }
 

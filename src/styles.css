@@ -1070,6 +1070,318 @@ summary {
   text-transform: uppercase;
 }
 
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tagList span {
+  background: #f0eee4;
+  color: #3d423a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.planDoc {
+  min-height: 100vh;
+  background: #fff;
+  padding-bottom: 70px;
+}
+
+.planToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  border-bottom: 2px solid #1b1f1a;
+  background: #fafaf8;
+  padding: 16px 34px;
+}
+
+.planToolbar > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.planToolbar > button {
+  position: relative;
+  z-index: 1;
+}
+
+.planToolbar span {
+  color: #8a8f86;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.planHero {
+  background: #1b3327;
+  color: #fff;
+  padding: 46px 34px 40px;
+}
+
+.planHero > div,
+.planBody {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.planHeroTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.planHeroTop strong,
+.planHero h1 {
+  font-family: Newsreader, Georgia, serif;
+  font-weight: 500;
+}
+
+.planHeroTop strong {
+  font-size: 24px;
+  letter-spacing: -0.015em;
+}
+
+.planHeroTop > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.planHeroTop span {
+  border: 1.5px solid #6e8a63;
+  color: #d6e3cf;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+.planHeroTop span:first-child {
+  border: none;
+  background: #aece36;
+  color: #1b3327;
+}
+
+.planHeroRule {
+  height: 2px;
+  background: #aece36;
+  margin: 30px 0 26px;
+}
+
+.planHero h1 {
+  max-width: 22ch;
+  font-size: clamp(44px, 6.6vw, 74px);
+  letter-spacing: -0.025em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.planHero p {
+  max-width: 58ch;
+  color: #d6e3cf;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.planHero .hello {
+  color: #aece36;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 30px 0 0;
+}
+
+.planHeroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 40px;
+  border-top: 1.5px solid #3f5b4c;
+  margin-top: 36px;
+  padding-top: 18px;
+}
+
+.planHeroMeta .meta span {
+  color: #7e9b72;
+}
+
+.planHeroMeta .meta strong {
+  color: #fff;
+}
+
+.planBody {
+  color: #1b1f1a;
+  padding: 52px 34px 0;
+}
+
+.planSection {
+  margin-top: 54px;
+}
+
+.planSection:first-child {
+  margin-top: 0;
+}
+
+.planSectionTitle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  border-bottom: 2px solid #1b1f1a;
+  padding-bottom: 14px;
+}
+
+.planSectionTitle span {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  background: #aece36;
+  color: #1b3327;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.planSectionTitle h2 {
+  font-size: 30px;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.planSection p {
+  max-width: 64ch;
+  color: #3d423a;
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 18px 0 0;
+}
+
+.planCallout {
+  border-left: 3px solid #aece36;
+  margin-top: 22px;
+  padding: 4px 0 4px 18px;
+}
+
+.planCallout p:first-child {
+  color: #1b1f1a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sharedQuote {
+  background: #aece36;
+  color: #1b3327;
+  font-family: Newsreader, Georgia, serif;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin-top: 26px;
+  max-width: 34ch;
+  padding: 24px 26px;
+}
+
+.planPracticeList {
+  display: grid;
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.planPractice {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  border: 2px solid #1b1f1a;
+}
+
+.planPractice > span {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #1b3327;
+  color: #aece36;
+  font-size: 22px;
+  font-weight: 900;
+  padding-top: 16px;
+}
+
+.planPractice > div {
+  min-width: 0;
+  padding: 16px 20px 18px;
+}
+
+.planPractice h3 {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.32;
+  margin-top: 7px;
+}
+
+.planEvidence {
+  background: #f0eee4;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.planEvidence strong {
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.planEvidence p {
+  color: #3d423a;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin-top: 5px;
+}
+
+.beforeBegin {
+  border-top: 2px solid #1b1f1a;
+  background: #f0eee4;
+  margin-top: 54px;
+  padding: 26px 26px 28px;
+}
+
+.beforeBegin .planSectionTitle {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.beforeBegin .planSectionTitle span {
+  background: #1b3327;
+  color: #aece36;
+}
+
+.beforeBegin h2 {
+  font-size: 26px;
+}
+
+.beforeBegin p {
+  color: #5a5f56;
+  font-size: 14.5px;
+  line-height: 1.65;
+  max-width: 66ch;
+  margin: 16px 0 0;
+}
+
 .emptyLine {
   color: #5a5f56;
   padding: 40px 34px;
@@ -1121,6 +1433,25 @@ summary {
 
   [data-noprint] {
     display: none !important;
+  }
+
+  .planToolbar {
+    display: none !important;
+  }
+
+  .planHero {
+    height: 297mm;
+    break-after: page;
+    padding: 26mm 18mm !important;
+  }
+
+  .planBody {
+    max-width: none !important;
+    padding: 16mm 18mm !important;
+  }
+
+  .planPractice {
+    break-inside: avoid;
   }
 
   h1,
