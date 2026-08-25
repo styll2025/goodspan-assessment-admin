@@ -1,0 +1,317 @@
+:root {
+  color: #1b1f1a;
+  background: #f7f5ee;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #1b1f1a;
+  background: #fff;
+  color: #1b1f1a;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.7rem 0.95rem;
+}
+
+button:hover,
+button.active {
+  background: #1b1f1a;
+  color: #fff;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #c6c4b8;
+  background: #fff;
+  color: #1b1f1a;
+  padding: 0.75rem 0.85rem;
+}
+
+textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+label {
+  display: grid;
+  gap: 0.45rem;
+  color: #3d423a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+main {
+  width: min(1440px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: end;
+  background: #1b3327;
+  color: #fff;
+  padding: clamp(2rem, 6vw, 4rem);
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 10ch;
+  font-size: clamp(3rem, 9vw, 6.5rem);
+  letter-spacing: -0.06em;
+  line-height: 0.88;
+}
+
+.lede {
+  max-width: 48rem;
+  color: #e7e2d7;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.heroStats,
+.summary,
+.numberGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.tabs,
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.grid.two {
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+.card {
+  background: #fff;
+  border: 2px solid #1b1f1a;
+  padding: 1.5rem;
+  box-shadow: 8px 8px 0 #aece36;
+}
+
+.cardHeader,
+.split {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: #5a5f56;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h2,
+h3,
+h4 {
+  margin: 0 0 0.75rem;
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+h3 {
+  margin-top: 1.5rem;
+}
+
+.muted {
+  color: #5a5f56;
+}
+
+.stat {
+  border: 1px solid #dfddd3;
+  background: #fafaf8;
+  padding: 1rem;
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.6rem;
+}
+
+.stat span {
+  color: #5a5f56;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border: 1px solid #1b1f1a;
+  background: #aece36;
+  color: #1b1f1a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 0.3rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.respondentList,
+.practiceList,
+.practiceBank,
+.circleGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.respondentList {
+  max-height: 68vh;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.person {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  border-color: #dfddd3;
+  text-align: left;
+}
+
+.person span,
+.circle li span {
+  color: #5a5f56;
+  font-size: 0.9rem;
+}
+
+.person.selected {
+  border-color: #1b1f1a;
+  background: #f0eee4;
+  color: #1b1f1a;
+}
+
+.practice,
+.circle {
+  border: 1px solid #dfddd3;
+  background: #fafaf8;
+  padding: 1rem;
+}
+
+.practiceTop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.slot {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  background: #1b3327;
+  color: #fff;
+  font-weight: 900;
+}
+
+details {
+  border-top: 1px solid #dfddd3;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.scoreGrid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.scoreRow {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) 3.5rem;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.bar {
+  height: 0.7rem;
+  background: #dfddd3;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: #aece36;
+}
+
+.circleGrid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.circle ul {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.circle li {
+  display: grid;
+}
+
+.empty {
+  display: grid;
+  min-height: 26rem;
+  place-content: center;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+
+  .heroStats,
+  .summary,
+  .numberGrid {
+    grid-template-columns: 1fr;
+  }
+}
