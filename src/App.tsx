@@ -166,14 +166,13 @@ export default function App() {
       <div className="loginScreen">
         <div className="loginCard">
           <Brand />
-          <p className="eyebrow">Internal tool</p>
+          <p className="eyebrow">Admin Tool</p>
           <h1>
             Practice
             <br />
             Matcher
           </h1>
           <div className="rule" />
-          <p className="loginText">Enter the shared passcode to access respondent data and Circle matching.</p>
           <div className="loginForm">
             <input
               type="password"

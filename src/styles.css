@@ -162,12 +162,9 @@ p {
   background: #1b1f1a;
 }
 
-.loginText {
-  max-width: 40ch;
-  color: #5a5f56;
-  font-size: 16px;
-  line-height: 1.5;
-  margin-bottom: 28px;
+.loginCard .eyebrow {
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 
 .loginForm {
