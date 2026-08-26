@@ -56,7 +56,6 @@ export default function App() {
   const [practicePillar, setPracticePillar] = useState<Pillar | 'all'>('all');
   const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
   const [practiceQuery, setPracticeQuery] = useState('');
-  const [jsonInput, setJsonInput] = useState('');
   const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
   const [swaps, setSwaps] = useState<Record<string, string>>({});
   const [sheetConnected, setSheetConnected] = useState(false);
@@ -118,17 +117,6 @@ export default function App() {
     } catch (error) {
       setSheetConnected(false);
       setStatus(error instanceof Error ? `Sheet error — ${error.message}` : 'Sheet error — using local data');
-    }
-  }
-
-  function loadFromJson() {
-    try {
-      const parsed = JSON.parse(jsonInput) as Record<string, unknown>[];
-      if (!Array.isArray(parsed)) throw new Error('Paste a JSON array of respondents');
-      applyRespondents(parsed.map(normalizeRespondent), `${parsed.length} pasted respondents loaded`);
-      setSheetConnected(false);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Invalid JSON');
     }
   }
 
@@ -331,9 +319,6 @@ export default function App() {
           onDisconnect={disconnectSheet}
           sheetConnected={sheetConnected}
           status={status}
-          jsonInput={jsonInput}
-          onJsonInput={setJsonInput}
-          onLoadJson={loadFromJson}
           onSample={loadSamples}
           overrideSummary={overrideSummary(swaps, levelOverrides)}
           onResetOverrides={resetOverrides}
@@ -1043,9 +1028,6 @@ function SettingsView({
   onDisconnect,
   sheetConnected,
   status,
-  jsonInput,
-  onJsonInput,
-  onLoadJson,
   onSample,
   overrideSummary,
   onResetOverrides,
@@ -1058,9 +1040,6 @@ function SettingsView({
   onDisconnect: () => void;
   sheetConnected: boolean;
   status: string;
-  jsonInput: string;
-  onJsonInput: (value: string) => void;
-  onLoadJson: () => void;
   onSample: () => void;
   overrideSummary: string;
   onResetOverrides: () => void;
@@ -1458,11 +1437,6 @@ function SettingsView({
               <p>{overrideSummary}</p>
             </div>
             <button className="danger" type="button" onClick={onResetOverrides}>Reset</button>
-          </div>
-          <div className="jsonPaste">
-            <div className="fieldLabel">Paste respondent JSON</div>
-            <textarea value={jsonInput} onChange={(event) => onJsonInput(event.target.value)} placeholder="[{...}]" />
-            <button className="ghost" type="button" onClick={onLoadJson}>Load pasted JSON</button>
           </div>
         </div>
       </section>
