@@ -15,12 +15,13 @@ import {
   TIME_TO_LEVEL,
   autoCluster,
   buildPlan,
+  cloneSettings,
   matchedChallengeTerms,
   normalizeRespondent,
   suggestCircleFor,
 } from './lib/matching';
 import { generateSampleRespondents } from './lib/sampleData';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, TimePerDay } from './types';
 
 type Tab = 'respondents' | 'circles' | 'library' | 'settings';
 
@@ -56,10 +57,29 @@ export default function App() {
   const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
   const [practiceQuery, setPracticeQuery] = useState('');
   const [jsonInput, setJsonInput] = useState('');
+  const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
+  const [swaps, setSwaps] = useState<Record<string, string>>({});
+  const [sheetConnected, setSheetConnected] = useState(false);
 
   const plans = useMemo(
-    () => new Map(respondents.map((respondent) => [respondent.id, buildPlan(respondent, settings)])),
-    [respondents, settings],
+    () =>
+      new Map(
+        respondents.map((respondent) => {
+          const slotSwaps: Record<number, string> = {};
+          Object.entries(swaps).forEach(([key, text]) => {
+            const [id, index] = key.split(':');
+            if (id === respondent.id) slotSwaps[Number(index)] = text;
+          });
+          return [
+            respondent.id,
+            buildPlan(respondent, settings, {
+              levelId: levelOverrides[respondent.id],
+              swaps: slotSwaps,
+            }),
+          ];
+        }),
+      ),
+    [respondents, settings, levelOverrides, swaps],
   );
   const circles = useMemo(() => autoCluster(respondents, plans, settings), [respondents, plans, settings]);
   const filtered = respondents.filter((respondent) => {
@@ -93,9 +113,11 @@ export default function App() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const rows = (await response.json()) as Record<string, unknown>[];
       if (!Array.isArray(rows)) throw new Error('Unexpected response shape');
-      applyRespondents(rows.map(normalizeRespondent), `Connected to Google Sheet - ${rows.length} loaded`);
+      applyRespondents(rows.map(normalizeRespondent), `Connected to Google Sheet — ${rows.length} loaded`);
+      setSheetConnected(true);
     } catch (error) {
-      setStatus(error instanceof Error ? `Sheet error - ${error.message}` : 'Sheet error - using local data');
+      setSheetConnected(false);
+      setStatus(error instanceof Error ? `Sheet error — ${error.message}` : 'Sheet error — using local data');
     }
   }
 
@@ -104,6 +126,7 @@ export default function App() {
       const parsed = JSON.parse(jsonInput) as Record<string, unknown>[];
       if (!Array.isArray(parsed)) throw new Error('Paste a JSON array of respondents');
       applyRespondents(parsed.map(normalizeRespondent), `${parsed.length} pasted respondents loaded`);
+      setSheetConnected(false);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Invalid JSON');
     }
@@ -112,6 +135,7 @@ export default function App() {
   function loadSamples() {
     const sample = generateSampleRespondents();
     applyRespondents(sample, `${sample.length} sample respondents loaded`);
+    setSheetConnected(false);
   }
 
   function applyRespondents(next: Respondent[], nextStatus: string) {
@@ -119,7 +143,34 @@ export default function App() {
     setSelectedId(next[0]?.id ?? '');
     setSearch('');
     setPlanOpen(false);
+    setLevelOverrides({});
+    setSwaps({});
     setStatus(nextStatus);
+  }
+
+  function disconnectSheet() {
+    setSheetConnected(false);
+    setStatus('Not connected — using local data');
+  }
+
+  function setLevelOverride(respondentId: string, level: Level) {
+    setLevelOverrides((prev) => ({ ...prev, [respondentId]: level }));
+    setSwaps((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (key.startsWith(`${respondentId}:`)) delete next[key];
+      });
+      return next;
+    });
+  }
+
+  function swapPractice(respondentId: string, index: number, text: string) {
+    setSwaps((prev) => ({ ...prev, [`${respondentId}:${index}`]: text }));
+  }
+
+  function resetOverrides() {
+    setSwaps({});
+    setLevelOverrides({});
   }
 
   if (!authed) {
@@ -186,7 +237,7 @@ export default function App() {
           </div>
           <div className="topStatus">
             <span className="dot" />
-            <span>{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
+            <span className="countLabel">{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
             <button className="textButton" onClick={logout}>Log out</button>
           </div>
         </header>
@@ -240,7 +291,14 @@ export default function App() {
 
           <main className="detailPane">
             {selected && selectedPlan ? (
-              <RespondentPlan respondent={selected} plan={selectedPlan} circle={selectedCircle} onOpenPlan={() => setPlanOpen(true)} />
+              <RespondentPlan
+                respondent={selected}
+                plan={selectedPlan}
+                circle={selectedCircle}
+                onOpenPlan={() => setPlanOpen(true)}
+                onLevelOverride={(level) => setLevelOverride(selected.id, level)}
+                onSwapPractice={(index, text) => swapPractice(selected.id, index, text)}
+              />
             ) : (
               <NoRespondents onSample={loadSamples} />
             )}
@@ -270,11 +328,15 @@ export default function App() {
           sheetUrl={sheetUrl}
           onSheetUrl={setSheetUrl}
           onLoadSheet={loadFromSheet}
+          onDisconnect={disconnectSheet}
+          sheetConnected={sheetConnected}
           status={status}
           jsonInput={jsonInput}
           onJsonInput={setJsonInput}
           onLoadJson={loadFromJson}
           onSample={loadSamples}
+          overrideSummary={overrideSummary(swaps, levelOverrides)}
+          onResetOverrides={resetOverrides}
         />
       )}
     </div>
@@ -307,11 +369,15 @@ function RespondentPlan({
   plan,
   circle,
   onOpenPlan,
+  onLevelOverride,
+  onSwapPractice,
 }: {
   respondent: Respondent;
   plan: Plan;
   circle: Circle | null;
   onOpenPlan: () => void;
+  onLevelOverride: (level: Level) => void;
+  onSwapPractice: (index: number, text: string) => void;
 }) {
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
@@ -333,11 +399,12 @@ function RespondentPlan({
   ];
   const profileRows: Array<[string, string]> = [
     ['Age range', respondent.ageBand],
-    ['Work', respondent.workStatus || '-'],
-    ['Home life', respondent.homeLife || '-'],
-    ['Gender', respondent.genderSelfDescribe || respondent.gender || '-'],
+    ['Life stage', respondent.lifeStage || '—'],
+    ['Work', respondent.workStatus || '—'],
+    ['Home life', respondent.homeLife || '—'],
+    ['Gender', respondent.genderSelfDescribe || respondent.gender || '—'],
     ['Personality', title(respondent.personality)],
-    ['Location', respondent.location || '-'],
+    ['Location', respondent.location || '—'],
   ];
 
   return (
@@ -364,7 +431,12 @@ function RespondentPlan({
           <p className="eyebrow light">Intensity override</p>
           <div>
             {(['gentle', 'moderate', 'deep'] as Level[]).map((level) => (
-              <button key={level} className={level === plan.levelId ? 'selected' : ''} type="button">
+              <button
+                key={level}
+                className={level === plan.levelId ? 'selected' : ''}
+                type="button"
+                onClick={() => onLevelOverride(level)}
+              >
                 {title(level)}
               </button>
             ))}
@@ -452,7 +524,16 @@ function RespondentPlan({
                         <div>Alternatives in {item.category}</div>
                         {item.alternatives.length ? (
                           item.alternatives.map((alternative) => (
-                            <button key={alternative.text} type="button">{alternative.text}</button>
+                            <button
+                              key={alternative.text}
+                              type="button"
+                              onClick={() => {
+                                onSwapPractice(index, alternative.text);
+                                setSwapOpen(null);
+                              }}
+                            >
+                              {alternative.text}
+                            </button>
                           ))
                         ) : (
                           <p>No alternatives at this intensity in this category.</p>
@@ -467,110 +548,118 @@ function RespondentPlan({
         </div>
 
         <aside className="inspector">
-          <div className="inspectorHead">
-            <h3>Pillar match</h3>
-            <span className="scoreHeadMeta">
-              <span>Score</span>
-              <button
-                type="button"
-                className="scoreInfoBtn"
-                title="How the pillar score works"
-                onClick={() => setScoreInfoOpen((open) => !open)}
-              >
-                i
-              </button>
-            </span>
-          </div>
-          {scoreInfoOpen && (
-            <div className="scoreExplain">
-              <div>How the pillar score works</div>
-              <p>Each pillar starts with a base score — the average of that pillar's two habit answers, normalised so worse current habits score higher (more room to grow), plus a fixed boost for every main challenge they selected that maps to it. This base runs from 0 up to roughly 1.15–1.30, depending on the pillar.</p>
-              <p>On top of that base, their stated goal adds the Stated-goal influence weight set in Settings. At 100%, that weight isn't just “added” — the stated goal is used directly, overriding the base score entirely, and the numbers above are shown for reference only.</p>
-              <p>The highest total (base + goal weight, or the override) wins the Span. If they said “I'm not sure” for their goal, there's no pillar to apply the weight to, so this slider has no effect regardless of position.</p>
+          <div className="inspectorBlock">
+            <div className="inspectorHead">
+              <h3>Pillar match</h3>
+              <span className="scoreHeadMeta">
+                <span>Score</span>
+                <button
+                  type="button"
+                  className="scoreInfoBtn"
+                  title="How the pillar score works"
+                  onClick={() => setScoreInfoOpen((open) => !open)}
+                >
+                  i
+                </button>
+              </span>
             </div>
-          )}
-          {plan.overridden && (
-            <div className="infoBox">
-              <strong>Stated goal override active</strong>
-              <p>Scores below are shown for reference only; they did not decide the outcome.</p>
-            </div>
-          )}
-          {goalUnsure && (
-            <div className="unsureNote">
-              <p>This person said they weren't sure which area to focus on, so the stated-goal slider has no effect — their Span is decided entirely by habit answers and stated challenges.</p>
-            </div>
-          )}
-          <div className="scoreGrid" style={{ opacity: plan.overridden ? 0.45 : 1 }}>
-            {rankedPillars.map((pillar, index) => (
-              <div key={pillar} className={index === 0 ? 'scoreRow winner' : 'scoreRow'}>
-                <span>{PILLAR_LABEL[pillar]}</span>
-                <div className="bar">
-                  <i style={{ width: `${Math.min(100, Math.max(3, plan.scores[pillar] * 100))}%` }} />
-                </div>
-                <strong>{plan.scores[pillar].toFixed(2)}</strong>
+            {scoreInfoOpen && (
+              <div className="scoreExplain">
+                <div>How the pillar score works</div>
+                <p>Each pillar starts with a base score — the average of that pillar's two habit answers, normalised so worse current habits score higher (more room to grow), plus a fixed boost for every main challenge they selected that maps to it. This base runs from 0 up to roughly 1.15–1.30, depending on the pillar.</p>
+                <p>On top of that base, their stated goal adds the Stated-goal influence weight set in Settings. At 100%, that weight isn't just “added” — the stated goal is used directly, overriding the base score entirely, and the numbers above are shown for reference only.</p>
+                <p>The highest total (base + goal weight, or the override) wins the Span. If they said “I'm not sure” for their goal, there's no pillar to apply the weight to, so this slider has no effect regardless of position.</p>
               </div>
+            )}
+            {plan.overridden && (
+              <div className="infoBox">
+                <strong>Stated goal override active</strong>
+                <p>Scores below are shown for reference only; they did not decide the outcome.</p>
+              </div>
+            )}
+            {goalUnsure && (
+              <div className="unsureNote">
+                <p>This person said they weren't sure which area to focus on, so the stated-goal slider has no effect — their Span is decided entirely by habit answers and stated challenges.</p>
+              </div>
+            )}
+            <div className="scoreGrid" style={{ opacity: plan.overridden ? 0.45 : 1 }}>
+              {rankedPillars.map((pillar, index) => (
+                <div key={pillar} className={index === 0 ? 'scoreRow winner' : 'scoreRow'}>
+                  <span>{PILLAR_LABEL[pillar]}</span>
+                  <div className="bar">
+                    <i style={{ width: `${Math.min(100, Math.max(3, plan.scores[pillar] * 100))}%` }} />
+                  </div>
+                  <strong>{plan.scores[pillar].toFixed(2)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="inspectorBlock">
+            <h3>Goals</h3>
+            {goalRows.map(([label, value]) => (
+              <Meta key={label} label={label} value={value} />
             ))}
           </div>
 
-          <h3>Goals</h3>
-          {goalRows.map(([label, value]) => (
-            <Meta key={label} label={label} value={value} />
-          ))}
-
-          <div className="inspectorHead">
-            <h3>Habit answers</h3>
-            <span className="scoreHeadMeta">
-              <span>Room to grow</span>
-              <button
-                type="button"
-                className="scoreInfoBtn"
-                title="How these scores work"
-                onClick={() => setHabitInfoOpen((open) => !open)}
-              >
-                i
-              </button>
-            </span>
-          </div>
-          {habitInfoOpen && (
-            <div className="scoreExplain">
-              <div>How these scores work</div>
-              <p>Each answer is converted to a 0–1 scale, where 1 is the weakest current habit and so the most room to grow. The two questions in a pillar are averaged to give that pillar's base score in Pillar match above, before challenge boosts and stated-goal weight are added.</p>
-              <p>A weak answer here also raises the priority of the categories it maps to, which is how two people on the same Span end up with different practices.</p>
+          <div className="inspectorBlock">
+            <div className="inspectorHead">
+              <h3>Habit answers</h3>
+              <span className="scoreHeadMeta">
+                <span>Room to grow</span>
+                <button
+                  type="button"
+                  className="scoreInfoBtn"
+                  title="How these scores work"
+                  onClick={() => setHabitInfoOpen((open) => !open)}
+                >
+                  i
+                </button>
+              </span>
             </div>
-          )}
-          <div className="habitSignalList">
-            {HABIT_KEYS.map((habit) => {
-              const score = normalizedHabitScore(respondent, habit);
-              const pillar = pillarForHabit(habit);
-              return (
-                <div className="habitSignal" key={habit}>
-                  <div>
-                    <strong>{HABIT_LABEL[habit]}</strong>
-                    <span title={HABIT_SCORE_HELP}>{score.toFixed(2)}</span>
+            {habitInfoOpen && (
+              <div className="scoreExplain">
+                <div>How these scores work</div>
+                <p>Each answer is converted to a 0–1 scale, where 1 is the weakest current habit and so the most room to grow. The two questions in a pillar are averaged to give that pillar's base score in Pillar match above, before challenge boosts and stated-goal weight are added.</p>
+                <p>A weak answer here also raises the priority of the categories it maps to, which is how two people on the same Span end up with different practices.</p>
+              </div>
+            )}
+            <div className="habitSignalList">
+              {HABIT_KEYS.map((habit) => {
+                const score = normalizedHabitScore(respondent, habit);
+                const pillar = pillarForHabit(habit);
+                return (
+                  <div className="habitSignal" key={habit}>
+                    <div>
+                      <strong>{HABIT_LABEL[habit]}</strong>
+                      <span title={HABIT_SCORE_HELP}>{score.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <Pill label={PILLAR_LABEL[pillar]} tone={pillar} />
+                      <small>{habitAnswerLabel(respondent, habit)}</small>
+                    </div>
+                    <span className="miniBar"><i style={{ width: `${Math.round(score * 100)}%` }} /></span>
                   </div>
-                  <div>
-                    <Pill label={PILLAR_LABEL[pillar]} tone={pillar} />
-                    <small>{habitAnswerLabel(respondent, habit)}</small>
-                  </div>
-                  <span className="miniBar"><i style={{ width: `${Math.round(score * 100)}%` }} /></span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="habitNote">Worse current habits score higher, since they leave the most room to improve. The two questions per Span are averaged into the Pillar match above.</p>
-
-          <h3>Profile</h3>
-          {profileRows.map(([label, value]) => (
-            <Meta key={label} label={label} value={value} />
-          ))}
-          <div className="profileTags">
-            <div className="tagGroup">
-              <span>Motivations</span>
-              <TagList items={respondent.motivations} empty="—" />
+                );
+              })}
             </div>
-            <div className="tagGroup">
-              <span>Main challenges</span>
-              <TagList items={respondent.mainChallenges} empty="—" />
+            <p className="habitNote">Worse current habits score higher, since they leave the most room to improve. The two questions per Span are averaged into the Pillar match above.</p>
+          </div>
+
+          <div className="inspectorBlock">
+            <h3>Profile</h3>
+            {profileRows.map(([label, value]) => (
+              <Meta key={label} label={label} value={value} />
+            ))}
+            <div className="profileTags">
+              <div className="tagGroup">
+                <span>Motivations</span>
+                <TagList items={respondent.motivations} empty="—" />
+              </div>
+              <div className="tagGroup">
+                <span>Main challenges</span>
+                <TagList items={respondent.mainChallenges} empty="—" />
+              </div>
             </div>
           </div>
         </aside>
@@ -951,47 +1040,53 @@ function SettingsView({
   sheetUrl,
   onSheetUrl,
   onLoadSheet,
+  onDisconnect,
+  sheetConnected,
   status,
   jsonInput,
   onJsonInput,
   onLoadJson,
   onSample,
+  overrideSummary,
+  onResetOverrides,
 }: {
   settings: MatchingSettings;
   onSettings: (settings: MatchingSettings) => void;
   sheetUrl: string;
   onSheetUrl: (url: string) => void;
   onLoadSheet: () => void;
+  onDisconnect: () => void;
+  sheetConnected: boolean;
   status: string;
   jsonInput: string;
   onJsonInput: (value: string) => void;
   onLoadJson: () => void;
   onSample: () => void;
+  overrideSummary: string;
+  onResetOverrides: () => void;
 }) {
-  const timeRows = (Object.keys(TIME_TO_LEVEL) as Array<keyof typeof TIME_TO_LEVEL>).map((time) => ({
-    time,
-    label: labelForTime(time),
-    level: TIME_TO_LEVEL[time],
-  }));
-  const traitRows = [
-    ['Age band', 'Counts once for each member already in the same age band.'],
-    ['Gender', 'Counts once for each member with the same gender answer.'],
-    ['Personality', 'Counts once for each member of the same type.'],
-    ['Work situation', 'Counts once for each member with the same work situation.'],
-    ['Home life', 'Counts once for each member with the same home-life answer.'],
-  ];
+  const [kwSearch, setKwSearch] = useState('');
+  const sheetError = status.startsWith('Sheet error') ? status : '';
+  const update = (mutate: (next: MatchingSettings) => void) => {
+    const next = cloneSettings(settings);
+    mutate(next);
+    onSettings(next);
+  };
+  const timeKeys = Object.keys(TIME_TO_LEVEL) as TimePerDay[];
+  const challengeList = (Object.keys(CHALLENGE_KEYWORDS) as Challenge[]).filter((challenge) => {
+    const q = kwSearch.trim().toLowerCase();
+    if (!q) return true;
+    const keywords = (settings.challengeKeywords[challenge] ?? []).join(' ');
+    return challenge.toLowerCase().includes(q) || keywords.toLowerCase().includes(q);
+  });
   const habitRows = PILLARS.flatMap((pillar) =>
-    Object.entries(HABIT_CATEGORY_MAP[pillar]).map(([habit, categories]) => ({
+    (Object.keys(HABIT_CATEGORY_MAP[pillar]) as HabitKey[]).map((habit) => ({
       pillar,
-      habit: habit as keyof typeof HABIT_LABEL,
-      categories: categories ?? [],
+      habit,
+      categories: Object.keys(PRACTICES[pillar]),
+      selected: settings.habitCategoryMap[pillar][habit] ?? [],
     })),
   );
-  const challengeRows = Object.keys(CHALLENGE_KEYWORDS).map((challenge) => ({
-    challenge: challenge as Challenge,
-    pillar: PILLAR_BOOST_MAP[challenge as Challenge],
-    keywords: CHALLENGE_KEYWORDS[challenge as Challenge],
-  }));
 
   return (
     <main className="page">
@@ -1004,28 +1099,35 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Data source</h2>
-          <p>Paste the Google Apps Script Web App URL that serves your response sheet. Without it, the tool reads locally loaded responses.</p>
+          <p>Paste the Google Apps Script Web App URL that serves your response sheet. Without it, the tool reads locally saved responses.</p>
         </div>
         <div className="settingBody">
           <div className="statusBox">
-            <span className="dot" />
+            <span className="dot" style={{ background: sheetConnected ? '#AECE36' : '#C4C8BE' }} />
             <strong>{status}</strong>
           </div>
-          <label>
-            Web App URL
-            <input placeholder="https://script.google.com/macros/s/.../exec" value={sheetUrl} onChange={(event) => onSheetUrl(event.target.value)} />
-          </label>
+          <div className="fieldLabel">Web App URL</div>
+          <input
+            className="urlInput"
+            placeholder="https://script.google.com/macros/s/…/exec"
+            value={sheetUrl}
+            onChange={(event) => onSheetUrl(event.target.value)}
+          />
           <div className="buttonRow">
-            <button className="primary" onClick={onLoadSheet}>Connect</button>
-            <button onClick={onLoadSheet}>↻ Refresh responses</button>
+            <button className="primary" type="button" onClick={onLoadSheet}>Connect</button>
+            <button className="ghost" type="button" onClick={onLoadSheet}>↻ Refresh responses</button>
+            {sheetConnected && (
+              <button className="textButton disconnect" type="button" onClick={onDisconnect}>Disconnect</button>
+            )}
           </div>
+          {sheetError && <div className="sheetError">{sheetError}</div>}
         </div>
       </section>
 
       <section className="settingSection">
         <div>
           <h2>Matching and display</h2>
-          <p>How the matcher weighs a respondent's stated goal. These apply to every respondent.</p>
+          <p>How the matcher weighs a respondent's stated goal, and what it shows. These apply to every respondent.</p>
         </div>
         <div className="settingBody">
           <div className="sliderBlock">
@@ -1039,47 +1141,86 @@ function SettingsView({
               max="1"
               step="0.05"
               value={settings.statedGoalWeight}
-              onChange={(event) => onSettings({ ...settings, statedGoalWeight: Number(event.target.value) })}
+              onChange={(event) => update((next) => { next.statedGoalWeight = Number(event.target.value); })}
             />
             <div className="rangeLabels">
               <span>Habit answers only</span>
               <span>Favour stated goal</span>
             </div>
-            <p>At 0%, the Span comes from habit answers and stated challenges. Moving the slider adds a boost toward their stated goal. At 100%, their stated goal is used directly.</p>
+            <p>At 0%, the Span comes from habit answers and stated challenges — their explicit goal gets no added weight. Moving the slider adds a boost toward their stated goal. At 100%, their stated goal is used directly, overriding habit and challenge scoring entirely.</p>
+            <p>Anyone who answered “not sure” has no stated goal to override to, so the slider has no effect for them.</p>
           </div>
+
           <div className="subBlock">
             <strong>Time to level</strong>
             <p>Level comes straight from stated daily time, with no scoring. Admins can still override it per respondent.</p>
-            {timeRows.map((row) => (
-              <div className="mappingRow" key={row.time}>
-                <span>{row.label}</span>
-                <Pill label={title(row.level)} />
+            {timeKeys.map((time) => (
+              <div className="mappingRow" key={time}>
+                <span>{labelForTime(time)}</span>
+                <div className="seg">
+                  {(['gentle', 'moderate', 'deep'] as Level[]).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={settings.timeToLevel[time] === level ? 'selected' : ''}
+                      onClick={() => update((next) => { next.timeToLevel[time] = level; })}
+                    >
+                      {title(level)}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
+
           <div className="toggleInfo">
             <div>
               <strong>Circle-guarantee slot</strong>
-              <p>Assigns a slot outright to the best-scoring Circle-facing category, before anything else is ranked. Where a pillar has two such categories, only the stronger one is assigned; the other competes on merit.</p>
+              <p>Assigns a slot outright to the best-scoring Circle-facing category, before anything else is ranked — not a large number added to its score. Where a pillar has two such categories, only the stronger one is assigned; the other competes on merit.</p>
             </div>
-            <Pill label="On" />
+            <button
+              type="button"
+              className={settings.circleGuarantee ? 'guaranteeOn' : 'ghost'}
+              onClick={() => update((next) => { next.circleGuarantee = !next.circleGuarantee; })}
+            >
+              {settings.circleGuarantee ? 'On' : 'Off'}
+            </button>
           </div>
-          <div className="explainBox">
-            <strong>How the five slots are chosen</strong>
-            <p>First, the best-scoring Circle-facing category is given a slot outright. Then remaining categories are ranked on their best practice's keyword score plus weak-habit priority.</p>
+
+          <div className="slotExplain">
+            <div>How the five slots are chosen</div>
+            <p>Two steps. First, the best-scoring Circle-facing category is given a slot outright. Then every remaining category is ranked on its best practice's keyword score plus a bonus when it maps to a habit question the respondent answered weakly, and the top four take the remaining slots. Each winning category contributes its own top-scoring practice.</p>
             <p>This is what makes two people on the same Span differ: bad bedtime consistency pulls in Circadian Alignment, a poor wind-down pulls in Wind Down.</p>
           </div>
-          <SettingMetric label="Weak-habit priority" value="x50" text="Multiplies how weak that specific habit answer is, and adds the result to the category it maps to." />
-          <SettingMetric label="Challenge boost" value="+0.15" text="Added to a pillar score for every stated main challenge that maps to it." />
-          <SettingMetric label="Points per keyword match" value="+5" text="Decides which practice in each category is picked, and which fill leftover slots." />
-          <div className="subBlock">
-            <strong>Circle-facing categories</strong>
-            {PILLARS.map((pillar) => (
-              <div className="mappingRow" key={pillar}>
-                <span>{PILLAR_LABEL[pillar]}</span>
-                <span>{SOCIAL_CATEGORIES[pillar].join(', ')}</span>
-              </div>
-            ))}
+
+          <WeightRow
+            label="Weak-habit priority"
+            desc="Multiplies how weak that specific habit answer is, and adds the result to the category it maps to."
+            min={0}
+            max={100}
+            step={5}
+            value={settings.habitPriority}
+            display={`×${settings.habitPriority}`}
+            onChange={(value) => update((next) => { next.habitPriority = value; })}
+          />
+          <div className="sliderBlock flush">
+            <div className="sliderHead">
+              <strong>Challenge boost</strong>
+              <span>{settings.challengeBoost.toFixed(2)}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.05"
+              value={settings.challengeBoost}
+              onChange={(event) => update((next) => { next.challengeBoost = Number(event.target.value); })}
+            />
+            <div className="rangeLabels">
+              <span>Ignore challenges</span>
+              <span>Challenges lead</span>
+            </div>
+            <p>Added to a pillar score for every stated main challenge that maps to it. Habit answers sit on the same scale.</p>
           </div>
         </div>
       </section>
@@ -1087,42 +1228,99 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Circle formation</h2>
-          <p>Circles are grouped by same Span and exact city, then mixed for diversity across age, gender, personality, work and home life.</p>
+          <p>People are first grouped by Span and city. A person can only be placed in a Circle with others from the same Span and city.</p>
+          <p>Within that group, we try to make each Circle as mixed as possible. Each person is placed in the Circle where they are least similar to the people already in it.</p>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => update((next) => {
+              next.traitWeights = { ...DEFAULT_SETTINGS.traitWeights };
+              next.targetCircleSize = DEFAULT_SETTINGS.targetCircleSize;
+              next.minCircleSize = DEFAULT_SETTINGS.minCircleSize;
+              next.maxCircleSize = DEFAULT_SETTINGS.maxCircleSize;
+            })}
+          >
+            Restore default weights
+          </button>
         </div>
         <div className="settingBody">
-          <div className="subBlock">
-            <strong>How much each trait matters</strong>
+          <div className="slotExplain">
+            <div>How much each trait matters</div>
             <p>Use these numbers to control how strongly each trait affects mixing.</p>
             <div className="explainGrid">
               <span>Higher number:</span><p>the system works harder to avoid putting similar people together.</p>
               <span>0:</span><p>the system ignores that trait.</p>
               <span>Same number for all traits:</span><p>all traits have the same importance.</p>
             </div>
+            <div className="exampleBox">
+              <div>Example</div>
+              <p>A woman aged 35–44 is being placed into a Circle.</p>
+              <p>Circle A already has two women aged 35–44.</p>
+              <p>Circle B has no women aged 35–44.</p>
+              <p>If age = 1 and gender = 1, Circle A is more similar to her, while Circle B is less similar. She is therefore placed in Circle B.</p>
+            </div>
           </div>
-          {traitRows.map(([label, desc]) => (
-            <SettingMetric key={label} label={label} value="1 pt" text={desc} />
+          {TRAIT_ROWS.map((row) => (
+            <WeightRow
+              key={row.key}
+              label={row.label}
+              desc={row.desc}
+              min={0}
+              max={5}
+              step={1}
+              value={settings.traitWeights[row.key]}
+              display={ptsLabel(settings.traitWeights[row.key])}
+              onChange={(value) => update((next) => { next.traitWeights[row.key] = value; })}
+            />
           ))}
-          <div className="subBlock">
-            <strong>Group size, in people</strong>
-            <p>The target is used to decide how many groups to make. Groups are flagged if they fall outside the minimum or maximum.</p>
+          <div className="groupSizeHead">
+            <div>Group size, in people</div>
+            <p>Pools are divided into groups near the target, then flagged if they fall outside the minimum or maximum.</p>
           </div>
-          <div className="numberGrid">
-            <NumberInput label="Minimum size" value={settings.minCircleSize} onChange={(v) => onSettings({ ...settings, minCircleSize: v })} />
-            <NumberInput label="Target size" value={settings.targetCircleSize} onChange={(v) => onSettings({ ...settings, targetCircleSize: v })} />
-            <NumberInput label="Maximum size" value={settings.maxCircleSize} onChange={(v) => onSettings({ ...settings, maxCircleSize: v })} />
-          </div>
-          <div className="explainBox">
-            <strong>Higher diversity</strong>
-            <p>The system places each person into the Circle where they are least similar to the people already in it. Smaller groups are flagged as needing more people.</p>
-          </div>
-          <button onClick={() => onSettings(DEFAULT_SETTINGS)}>Restore default weights</button>
+          <WeightRow
+            label="Target size"
+            desc="Circles per city and Span are formed at roughly this size."
+            min={4}
+            max={10}
+            step={1}
+            value={settings.targetCircleSize}
+            display={peopleLabel(settings.targetCircleSize)}
+            onChange={(value) => update((next) => { next.targetCircleSize = value; })}
+          />
+          <WeightRow
+            label="Minimum size"
+            desc="Below this a group is flagged “needs more” rather than forced."
+            min={2}
+            max={8}
+            step={1}
+            value={settings.minCircleSize}
+            display={peopleLabel(settings.minCircleSize)}
+            onChange={(value) => update((next) => { next.minCircleSize = value; })}
+          />
+          <WeightRow
+            label="Maximum size"
+            desc="Above this a group is flagged “consider splitting”."
+            min={4}
+            max={12}
+            step={1}
+            value={settings.maxCircleSize}
+            display={peopleLabel(settings.maxCircleSize)}
+            onChange={(value) => update((next) => { next.maxCircleSize = value; })}
+          />
         </div>
       </section>
 
       <section className="settingSection">
         <div>
           <h2>Habits and goals</h2>
-          <p>The three things a respondent tells us do different work. Habits decide the Span and category priority. The stated goal nudges the Span. Challenges pick the practice inside each category.</p>
+          <p>The three things a respondent tells us do different work. Habits decide the Span and, within it, which categories are prioritised. The stated goal only nudges the Span. Challenges pick the practice inside each category, through the keywords below.</p>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => update((next) => { next.habitCategoryMap = structuredClone(HABIT_CATEGORY_MAP); })}
+          >
+            Restore default mapping
+          </button>
         </div>
         <div className="settingBody">
           <div className="logicTable">
@@ -1130,16 +1328,39 @@ function SettingsView({
             <span>Goal</span><p>Adds the stated-goal influence to that Span's score. It never picks a practice on its own.</p>
             <span>Challenges</span><p>Boost a Span, and match keywords to choose the practice within each category.</p>
           </div>
-          <p className="muted">
-            The weights behind it: how weak the answer is (0-1) is multiplied by the weak-habit priority of <strong>x50</strong>, and keyword matches against stated challenges add <strong>+5 points</strong> each.
-          </p>
+          <div className="slotExplain">
+            <div>Which category a weak habit answer prioritises</div>
+            <p>When someone answers a habit question poorly, the categories selected here move up the priority list for their plan. This is what makes two people on the same Span get different practices.</p>
+            <p>
+              The weights behind it: how weak the answer is (0–1) is multiplied by the weak-habit priority of <strong>×{settings.habitPriority}</strong> and added to each category mapped here, and keyword matches against their stated challenges add <strong>+{settings.keywordWeight} points</strong> each. One Circle-facing category is assigned a slot outright before this ranking runs; the four highest-priority categories take the rest.
+            </p>
+          </div>
           {habitRows.map((row) => (
             <div className="habitMapRow" key={`${row.pillar}-${row.habit}`}>
               <div>
                 <Pill label={PILLAR_LABEL[row.pillar]} tone={row.pillar} />
                 <strong>{HABIT_LABEL[row.habit]}</strong>
               </div>
-              <span>{row.categories.join(', ')}</span>
+              <div className="chipRow">
+                {row.categories.map((category) => {
+                  const on = row.selected.includes(category);
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      className={on ? 'catChip on' : 'catChip'}
+                      onClick={() => update((next) => {
+                        const current = next.habitCategoryMap[row.pillar][row.habit] ?? [];
+                        next.habitCategoryMap[row.pillar][row.habit] = on
+                          ? current.filter((item) => item !== category)
+                          : [...current, category];
+                      })}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
@@ -1148,50 +1369,101 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Challenges, keywords and pillar boosts</h2>
-          <p>Every practice gets +5 points for every keyword match between a respondent's selected challenges and the practice text or category. Matching is plain lowercase substring matching.</p>
+          <p>
+            Every practice gets <strong>+{settings.keywordWeight} points</strong> for every keyword match between a respondent's selected challenges and the practice's text or category. Matching is plain substring, lowercase, so stems like <strong>meditat</strong> catch both meditate and meditation. The pillar on the right is the one that challenge boosts in Span scoring — set it to none to take the challenge out of pillar scoring while keeping its keywords.
+          </p>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => update((next) => {
+              next.challengeKeywords = structuredClone(CHALLENGE_KEYWORDS);
+              next.challengePillars = { ...PILLAR_BOOST_MAP };
+            })}
+          >
+            Restore default challenge rules
+          </button>
         </div>
         <div className="settingBody">
-          <SettingMetric label="Points per keyword match" value="+5" text="Each matching keyword adds five points to that practice for that respondent." />
-          {challengeRows.map((row) => (
-            <div className="challengeRule" key={row.challenge}>
-              <div className="challengeHead">
-                <strong>{row.challenge}</strong>
-                <Pill label={PILLAR_LABEL[row.pillar]} tone={row.pillar} />
-                <span>{row.keywords.length} terms</span>
+          <WeightRow
+            label="Points per keyword match"
+            desc="Decides which practice in each category is picked, and which fill the leftover slots."
+            min={0}
+            max={12}
+            step={1}
+            value={settings.keywordWeight}
+            display={`+${settings.keywordWeight}`}
+            onChange={(value) => update((next) => { next.keywordWeight = value; })}
+          />
+          <input
+            className="urlInput"
+            placeholder="Filter challenges or keywords…"
+            value={kwSearch}
+            onChange={(event) => setKwSearch(event.target.value)}
+          />
+          {challengeList.map((challenge) => {
+            const pillar = settings.challengePillars[challenge] ?? 'none';
+            const stored = settings.challengeKeywords[challenge] ?? [];
+            const keywords = stored.filter(Boolean);
+            return (
+              <div className="challengeRule" key={challenge}>
+                <div className="challengeHead">
+                  <strong>{challenge}</strong>
+                  <div className="challengeMeta">
+                    <span>{keywords.length} {keywords.length === 1 ? 'term' : 'terms'}</span>
+                    <div className="seg compact">
+                      {(['none', ...PILLARS] as Array<Pillar | 'none'>).map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={pillar === option ? 'selected dark' : ''}
+                          onClick={() => update((next) => { next.challengePillars[challenge] = option; })}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <input
+                  className="keywordInput"
+                  value={stored.join(', ')}
+                  onChange={(event) => update((next) => {
+                    next.challengeKeywords[challenge] = event.target.value
+                      .split(',')
+                      .map((item) => item.trim());
+                  })}
+                />
               </div>
-              <div className="keywordCell">
-                {row.keywords.map((keyword) => <span className="keywordChip" key={keyword}>{keyword}</span>)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      <section className="settingSection">
+      <section className="settingSection last">
         <div>
           <h2>Testing and reset</h2>
           <p>Sample respondents let you exercise the matching logic without live data. Resetting clears every manual override you have made this session.</p>
         </div>
         <div className="settingBody">
-          <div className="toggleInfo">
+          <div className="toggleInfo first">
             <div>
               <strong>Load sample data</strong>
               <p>Replaces the current list with 30 generated respondents, grouped into city and Span cohorts so Circles can actually form.</p>
             </div>
-            <button onClick={onSample}>Load sample</button>
+            <button className="sampleBtn" type="button" onClick={onSample}>Load sample</button>
           </div>
           <div className="toggleInfo">
             <div>
               <strong>Reset overrides</strong>
-              <p>No manual swaps or intensity overrides yet.</p>
+              <p>{overrideSummary}</p>
             </div>
-            <button onClick={() => onSettings(DEFAULT_SETTINGS)}>Reset</button>
+            <button className="danger" type="button" onClick={onResetOverrides}>Reset</button>
           </div>
-          <label>
-            Paste respondent JSON
+          <div className="jsonPaste">
+            <div className="fieldLabel">Paste respondent JSON</div>
             <textarea value={jsonInput} onChange={(event) => onJsonInput(event.target.value)} placeholder="[{...}]" />
-          </label>
-          <button onClick={onLoadJson}>Load pasted JSON</button>
+            <button className="ghost" type="button" onClick={onLoadJson}>Load pasted JSON</button>
+          </div>
         </div>
       </section>
     </main>
@@ -1207,24 +1479,43 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SettingMetric({ label, value, text }: { label: string; value: string; text: string }) {
+const TRAIT_ROWS: Array<{ key: keyof MatchingSettings['traitWeights']; label: string; desc: string }> = [
+  { key: 'ageBand', label: 'Age band', desc: 'Counts once for each member already in the same age band.' },
+  { key: 'gender', label: 'Gender', desc: 'Counts once for each member with the same gender answer.' },
+  { key: 'personality', label: 'Personality', desc: 'Counts once for each member of the same type — introvert, ambivert or extrovert.' },
+  { key: 'lifeStage', label: 'Life stage', desc: 'Counts once for each member at the same life stage.' },
+  { key: 'work', label: 'Work situation', desc: 'Counts once for each member with the same work situation.' },
+  { key: 'home', label: 'Home life', desc: 'Counts once for each member with the same home-life answer.' },
+];
+
+function WeightRow({
+  label,
+  desc,
+  min,
+  max,
+  step,
+  value,
+  display,
+  onChange,
+}: {
+  label: string;
+  desc: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  display: string;
+  onChange: (value: number) => void;
+}) {
   return (
-    <div className="settingMetric">
+    <div className="weightRow">
       <div>
         <strong>{label}</strong>
-        <p>{text}</p>
+        <p>{desc}</p>
       </div>
-      <span>{value}</span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <span>{display}</span>
     </div>
-  );
-}
-
-function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return (
-    <label>
-      {label}
-      <input type="number" min="1" value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
   );
 }
 
@@ -1273,6 +1564,21 @@ function shortTime(value: string): string {
     '15to30': '15-30 min',
     '30plus': '30+ min',
   }[value] ?? '-';
+}
+
+function overrideSummary(swaps: Record<string, string>, levelOverrides: Record<string, Level>) {
+  const swapCount = Object.keys(swaps).length;
+  const levelCount = Object.keys(levelOverrides).length;
+  if (swapCount + levelCount === 0) return 'No manual swaps or intensity overrides yet.';
+  return `${swapCount} practice swap${swapCount === 1 ? '' : 's'} and ${levelCount} intensity override${levelCount === 1 ? '' : 's'} active.`;
+}
+
+function peopleLabel(value: number) {
+  return `${value} ${value === 1 ? 'person' : 'people'}`;
+}
+
+function ptsLabel(value: number) {
+  return `${value} ${value === 1 ? 'pt' : 'pts'}`;
 }
 
 function title(value: string): string {

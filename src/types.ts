@@ -39,6 +39,7 @@ export type Respondent = {
   genderSelfDescribe?: string;
   location: string;
   personality: 'introvert' | 'ambivert' | 'extrovert';
+  lifeStage?: string;
   habitAnswers?: Partial<Record<HabitKey, string>>;
   sleepConsistency: number;
   sleepWindDown: number;
@@ -95,7 +96,23 @@ export type Circle = {
 
 export type MatchingSettings = {
   statedGoalWeight: number;
+  challengeBoost: number;
+  keywordWeight: number;
+  habitPriority: number;
+  circleGuarantee: boolean;
   targetCircleSize: number;
   minCircleSize: number;
   maxCircleSize: number;
+  timeToLevel: Record<TimePerDay, Level>;
+  traitWeights: {
+    ageBand: number;
+    gender: number;
+    personality: number;
+    lifeStage: number;
+    work: number;
+    home: number;
+  };
+  habitCategoryMap: Record<Pillar, Partial<Record<HabitKey, string[]>>>;
+  challengeKeywords: Record<Challenge, string[]>;
+  challengePillars: Record<Challenge, Pillar | 'none'>;
 };

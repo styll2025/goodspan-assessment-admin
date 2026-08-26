@@ -72,6 +72,7 @@ export function generateSampleRespondents(): Respondent[] {
         gender: ['Woman', 'Man', 'Non-binary', 'Prefer not to say'][index % 4],
         location: cohort.city,
         personality: ['introvert', 'ambivert', 'extrovert'][index % 3] as Respondent['personality'],
+        lifeStage: ['Early career', 'Raising a family', 'Midlife', 'Later life'][index % 4],
         ...habitsFor(cohort.pillar),
         timePerDay: TIME_OPTIONS[index % TIME_OPTIONS.length],
       });

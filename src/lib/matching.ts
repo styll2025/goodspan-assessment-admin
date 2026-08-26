@@ -115,10 +115,30 @@ export const SOCIAL_CATEGORIES: Record<Pillar, string[]> = {
 
 export const DEFAULT_SETTINGS: MatchingSettings = {
   statedGoalWeight: 0.25,
+  challengeBoost: 0.15,
+  keywordWeight: 5,
+  habitPriority: 50,
+  circleGuarantee: true,
   targetCircleSize: 6,
   minCircleSize: 5,
   maxCircleSize: 7,
+  timeToLevel: { ...TIME_TO_LEVEL },
+  traitWeights: {
+    ageBand: 1,
+    gender: 1,
+    personality: 1,
+    lifeStage: 1,
+    work: 1,
+    home: 1,
+  },
+  habitCategoryMap: structuredClone(HABIT_CATEGORY_MAP),
+  challengeKeywords: structuredClone(CHALLENGE_KEYWORDS),
+  challengePillars: { ...PILLAR_BOOST_MAP },
 };
+
+export function cloneSettings(settings: MatchingSettings = DEFAULT_SETTINGS): MatchingSettings {
+  return structuredClone(settings);
+}
 
 type ScoredPractice = Practice & { category: string; score: number };
 type ScoredCategory = { category: string; practices: ScoredPractice[] };
@@ -153,6 +173,7 @@ export function normalizeRespondent(raw: Record<string, unknown>, index = 0): Re
     genderSelfDescribe: stringValue(raw.genderSelfDescribe) || undefined,
     location: stringValue(raw.location),
     personality: personalityValue(raw.personality),
+    lifeStage: stringValue(raw.lifeStage),
     habitAnswers,
     sleepConsistency: habit('sleepConsistency'),
     sleepWindDown: habit('sleepWindDown'),
@@ -182,16 +203,18 @@ export function habitScores(respondent: Respondent): Record<Pillar, number> {
 
 export function computeRecommendation(
   respondent: Respondent,
-  statedGoalWeight: number,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
 ): Pick<Plan, 'pillarId' | 'levelId' | 'scores' | 'overridden'> {
   const scores = habitScores(respondent);
   respondent.mainChallenges.forEach((challenge) => {
-    scores[PILLAR_BOOST_MAP[challenge]] += 0.15;
+    const pillar = settings.challengePillars[challenge];
+    if (pillar && pillar !== 'none') scores[pillar] += settings.challengeBoost;
   });
 
-  const levelId = TIME_TO_LEVEL[respondent.timePerDay] ?? 'moderate';
+  const levelId = settings.timeToLevel[respondent.timePerDay] ?? TIME_TO_LEVEL[respondent.timePerDay] ?? 'moderate';
   const focusArea = respondent.focusArea;
   const hasStatedGoal = focusArea !== 'unsure';
+  const statedGoalWeight = settings.statedGoalWeight;
 
   if (statedGoalWeight === 1 && hasStatedGoal) {
     return { pillarId: focusArea, levelId, scores, overridden: true };
@@ -207,11 +230,12 @@ export function scorePracticeByChallenges(
   practice: Practice,
   category: string,
   mainChallenges: Challenge[],
+  settings: MatchingSettings = DEFAULT_SETTINGS,
 ): number {
   const haystack = `${practice.text} ${category}`.toLowerCase();
   return mainChallenges.reduce((score, challenge) => {
-    const hits = CHALLENGE_KEYWORDS[challenge].filter((keyword) => haystack.includes(keyword));
-    return score + hits.length * 5;
+    const hits = (settings.challengeKeywords[challenge] ?? []).filter((keyword) => keyword && haystack.includes(keyword));
+    return score + hits.length * settings.keywordWeight;
   }, 0);
 }
 
@@ -219,11 +243,12 @@ export function matchedChallengeTerms(
   practice: Practice,
   category: string,
   mainChallenges: Challenge[],
+  settings: MatchingSettings = DEFAULT_SETTINGS,
 ): { challenge: Challenge; keyword: string }[] {
   const haystack = `${practice.text} ${category}`.toLowerCase();
   return mainChallenges.flatMap((challenge) =>
-    CHALLENGE_KEYWORDS[challenge]
-      .filter((keyword) => haystack.includes(keyword))
+    (settings.challengeKeywords[challenge] ?? [])
+      .filter((keyword) => keyword && haystack.includes(keyword))
       .map((keyword) => ({ challenge, keyword })),
   );
 }
@@ -231,14 +256,29 @@ export function matchedChallengeTerms(
 export function buildPlan(
   respondent: Respondent,
   settings: MatchingSettings = DEFAULT_SETTINGS,
+  overrides?: { levelId?: Level; swaps?: Record<number, string> },
 ): Plan {
-  const rec = computeRecommendation(respondent, settings.statedGoalWeight);
-  const scoredCategories = buildScoredCategories(rec.pillarId, rec.levelId, respondent);
-  const items = buildSlots(scoredCategories, rec.pillarId, respondent);
+  const rec = computeRecommendation(respondent, settings);
+  const levelId = overrides?.levelId ?? rec.levelId;
+  const scoredCategories = buildScoredCategories(rec.pillarId, levelId, respondent, settings);
+  let items = buildSlots(scoredCategories, rec.pillarId, respondent, settings);
+  if (overrides?.swaps) {
+    items = items.map((item, index) => {
+      const text = overrides.swaps?.[index];
+      if (!text || text === item.practice.text) return item;
+      const chosen = item.alternatives.find((practice) => practice.text === text);
+      if (!chosen) return item;
+      return {
+        ...item,
+        practice: chosen,
+        alternatives: [item.practice, ...item.alternatives.filter((practice) => practice.text !== text)],
+      };
+    });
+  }
   return {
     respondentId: respondent.id,
     pillarId: rec.pillarId,
-    levelId: rec.levelId,
+    levelId,
     overridden: rec.overridden,
     scores: rec.scores,
     items,
@@ -283,6 +323,7 @@ function buildScoredCategories(
   pillarId: Pillar,
   levelId: Level,
   respondent: Respondent,
+  settings: MatchingSettings,
 ): ScoredCategory[] {
   return Object.entries(PRACTICES[pillarId]).map(([category, practices]) => ({
     category,
@@ -291,32 +332,37 @@ function buildScoredCategories(
       .map((practice) => ({
         ...practice,
         category,
-        score: scorePracticeByChallenges(practice, category, respondent.mainChallenges),
+        score: scorePracticeByChallenges(practice, category, respondent.mainChallenges, settings),
       }))
       .sort((a, b) => b.score - a.score),
   }));
 }
 
-function buildSlots(categories: ScoredCategory[], pillarId: Pillar, respondent: Respondent): PlanItem[] {
+function buildSlots(
+  categories: ScoredCategory[],
+  pillarId: Pillar,
+  respondent: Respondent,
+  settings: MatchingSettings,
+): PlanItem[] {
   const socialNames = SOCIAL_CATEGORIES[pillarId];
   const social = categories
     .filter((category) => socialNames.includes(category.category))
     .sort((a, b) => topScore(b) - topScore(a))[0];
 
   const slots: PlanItem[] = [];
-  if (social?.practices[0]) {
+  if (settings.circleGuarantee && social?.practices[0]) {
     slots.push(toPlanItem(social, social.practices[0], 'social'));
   }
 
   const remaining = categories
-    .filter((category) => category !== social)
+    .filter((category) => !(settings.circleGuarantee && category === social))
     .map((category) => {
-      const driver = categoryHabitDriver(pillarId, category.category, respondent);
+      const driver = categoryHabitDriver(pillarId, category.category, respondent, settings);
       const habitWeak = driver?.weakness ?? 0;
       const challengeBest = topScore(category);
-      const priority = habitWeak * 50 + challengeBest;
+      const priority = habitWeak * settings.habitPriority + challengeBest;
       const reason: PlanItem['reason'] =
-        driver && habitWeak > 0.3 && habitWeak * 50 >= challengeBest
+        driver && habitWeak > 0.3 && habitWeak * settings.habitPriority >= challengeBest
           ? (`habit:${driver.habitKey}` as const)
           : challengeBest > 0
             ? 'challenge'
@@ -350,8 +396,9 @@ function categoryHabitDriver(
   pillarId: Pillar,
   categoryName: string,
   respondent: Respondent,
+  settings: MatchingSettings,
 ): { habitKey: HabitKey; weakness: number } | null {
-  const map = HABIT_CATEGORY_MAP[pillarId];
+  const map = settings.habitCategoryMap[pillarId];
   let best: { habitKey: HabitKey; weakness: number } | null = null;
 
   Object.entries(map).forEach(([habitKey, categories]) => {
@@ -396,8 +443,8 @@ function buildDiverseGroups(
     const available = groups.filter((group) => group.length < capacity);
     const candidates = available.length ? available : groups;
     const best = candidates.reduce((winner, group) => {
-      const score = clashScore(group, person);
-      const winnerScore = clashScore(winner, person);
+      const score = clashScore(group, person, settings);
+      const winnerScore = clashScore(winner, person, settings);
       if (score < winnerScore) return group;
       if (score === winnerScore && group.length < winner.length) return group;
       return winner;
@@ -422,15 +469,17 @@ function chooseGroupCount(n: number, minSize: number, maxSize: number, targetSiz
   return numGroups;
 }
 
-function clashScore(group: Respondent[], candidate: Respondent): number {
+function clashScore(group: Respondent[], candidate: Respondent, settings: MatchingSettings): number {
+  const weights = settings.traitWeights;
   return group.reduce((score, member) => {
     return (
       score +
-      same(member.ageBand, candidate.ageBand) +
-      same(member.gender, candidate.gender) +
-      same(member.personality, candidate.personality) +
-      same(member.workStatus, candidate.workStatus) +
-      same(member.homeLife, candidate.homeLife)
+      same(member.ageBand, candidate.ageBand) * weights.ageBand +
+      same(member.gender, candidate.gender) * weights.gender +
+      same(member.personality, candidate.personality) * weights.personality +
+      same(member.lifeStage || '', candidate.lifeStage || '') * weights.lifeStage +
+      same(member.workStatus, candidate.workStatus) * weights.work +
+      same(member.homeLife, candidate.homeLife) * weights.home
     );
   }, 0);
 }

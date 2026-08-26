@@ -133,8 +133,7 @@ p {
   margin-bottom: 44px;
 }
 
-.brand div,
-.brandCompact strong {
+.brand div {
   color: #1b1f1a;
   font-family: Newsreader, Georgia, "Times New Roman", serif;
   font-size: 38px;
@@ -205,7 +204,8 @@ p {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .brandCompact {
@@ -231,7 +231,7 @@ p {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.13em;
-  margin-top: -1px;
+  margin-top: -6px;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
@@ -276,6 +276,15 @@ p {
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+  background: #fff;
+  padding-left: 12px;
+  z-index: 1;
+}
+
+.countLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dot {
@@ -507,7 +516,13 @@ p {
   letter-spacing: 0.06em;
 }
 
-.levelOverride button.selected {
+.levelOverride button:hover {
+  background: rgba(174, 206, 54, 0.28);
+  color: #fff;
+}
+
+.levelOverride button.selected,
+.levelOverride button.selected:hover {
   background: #aece36;
   color: #1b3327;
 }
@@ -528,6 +543,8 @@ p {
 }
 
 .inspector {
+  display: grid;
+  gap: 30px;
   border-left: 2px solid #dfddd3;
   background: #fff;
   padding: 26px 30px 34px;
@@ -840,7 +857,8 @@ summary {
 }
 
 .inspectorHead h3,
-.inspector h3 {
+.inspector h3,
+.inspectorBlock > h3 {
   font-size: 17px;
   letter-spacing: -0.01em;
   margin: 0;
@@ -923,9 +941,20 @@ summary {
   margin: 0;
 }
 
-.inspector > h3 {
+.inspector .meta span {
+  color: #8a8f86;
+  padding-top: 2px;
+}
+
+.inspector .meta strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.inspector > h3,
+.inspectorBlock > h3 {
   border-bottom: 2px solid #1b1f1a;
-  margin-top: 30px;
+  margin-top: 0;
   padding-bottom: 12px;
 }
 
@@ -1016,10 +1045,14 @@ summary {
   font-weight: 600;
   text-align: left;
   text-transform: none;
+  letter-spacing: 0;
 }
 
-.alternativeBox button:hover {
+.alternativeBox button:hover,
+.alternativeBox button:focus-visible {
   background: #f0eee4;
+  color: #1b1f1a;
+  box-shadow: inset 0 0 0 1.5px #aece36;
 }
 
 .alternativeBox p {
@@ -1047,6 +1080,7 @@ summary {
 }
 
 .habitSignal strong {
+  color: #1b1f1a;
   font-size: 13.5px;
   font-weight: 600;
 }
@@ -1102,7 +1136,7 @@ summary {
 .profileTags {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 36px;
 }
 
 .profileTags .tagGroup + .tagGroup {
@@ -1136,7 +1170,7 @@ summary {
 }
 
 .suggestedCircle .sectionHead {
-  align-items: baseline;
+  align-items: flex-end;
   border-bottom: 2px solid #dfddd3;
   padding-bottom: 8px;
 }
@@ -1147,6 +1181,12 @@ summary {
   letter-spacing: -0.015em;
   line-height: 1.1;
   margin: 0;
+}
+
+.suggestedCircle .sectionHead span {
+  max-width: 52%;
+  text-align: right;
+  line-height: 1.3;
 }
 
 .emptyCircleNote {
@@ -1161,7 +1201,7 @@ summary {
   display: grid;
   gap: 0;
   max-width: 900px;
-  margin-top: 4px;
+  margin-top: 14px;
 }
 
 .circleMember {
@@ -1223,7 +1263,7 @@ summary {
   color: #5a5f56;
   font-size: 15px;
   line-height: 1.55;
-  margin-top: 12px;
+  margin-top: 18px;
 }
 
 .stat {
@@ -1524,25 +1564,140 @@ summary {
   display: grid;
   grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
   gap: 0 32px;
+  align-items: start;
   border-bottom: 2px solid #dfddd3;
   padding: 28px 34px 32px;
 }
 
+.settingSection.last {
+  border-bottom: none;
+  padding-bottom: 40px;
+}
+
 .settingSection h2 {
   font-size: 20px;
+  font-weight: 700;
   letter-spacing: -0.015em;
   margin: 0;
 }
 
-.settingSection p {
+.settingSection > div:first-child p {
   color: #5a5f56;
   font-size: 13.5px;
   line-height: 1.55;
   margin: 8px 0 0;
 }
 
+.settingSection > div:first-child p + p {
+  margin-top: 10px;
+}
+
 .settingBody {
   max-width: 620px;
+}
+
+.settingBody p {
+  color: #5a5f56;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.fieldLabel {
+  display: block;
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  margin: 20px 0 7px;
+}
+
+.urlInput,
+.keywordInput {
+  width: 100%;
+  border: 2px solid #1b1f1a;
+  background: #fff;
+  color: #1b1f1a;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 12px 14px;
+}
+
+.keywordInput {
+  margin-top: 8px;
+  border-width: 1px;
+  border-color: #dfddd3;
+  padding: 9px 11px;
+  font-size: 13px;
+}
+
+.keywordInput:focus {
+  border-color: #2c4636;
+  outline: none;
+}
+
+.buttonRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.ghost {
+  border-color: #dfddd3;
+  background: #fff;
+  color: #1b1f1a;
+}
+
+.ghost:hover {
+  border-color: #2c4636;
+  background: #fff;
+  color: #1b1f1a;
+}
+
+.danger {
+  margin-top: 16px;
+  border-color: #dfddd3;
+  background: #fff;
+  color: #b4482e;
+}
+
+.danger:hover {
+  border-color: #b4482e;
+  background: #fff;
+  color: #b4482e;
+}
+
+.toggleInfo .danger,
+.settingBody .danger {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.textButton.disconnect {
+  color: #5a5f56;
+  padding: 12px 4px;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.textButton.disconnect:hover {
+  color: #b4482e;
+  background: none;
+}
+
+.sheetError {
+  margin-top: 14px;
+  border-left: 4px solid #b4482e;
+  background: #fbf0ed;
+  color: #b4482e;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 12px 14px;
 }
 
 .statusBox {
@@ -1550,13 +1705,14 @@ summary {
   align-items: center;
   gap: 9px;
   background: #f0eee4;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   padding: 12px 14px;
 }
 
 .statusBox strong {
   color: #3d423a;
   font-size: 11px;
+  font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
@@ -1567,6 +1723,21 @@ summary {
   padding: 18px 0;
 }
 
+.sliderBlock.flush {
+  border-top: none;
+}
+
+.sliderBlock input[type="range"],
+.weightRow input[type="range"] {
+  width: 100%;
+  margin: 12px 0 0;
+  accent-color: #2c4636;
+}
+
+.weightRow input[type="range"] {
+  margin: 0;
+}
+
 .sliderHead {
   display: flex;
   align-items: baseline;
@@ -1574,13 +1745,17 @@ summary {
   gap: 16px;
 }
 
-.sliderHead strong {
+.sliderHead strong,
+.subBlock > strong,
+.toggleInfo strong {
   font-size: 15px;
+  font-weight: 700;
 }
 
 .sliderHead span {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
 
@@ -1589,9 +1764,10 @@ summary {
   justify-content: space-between;
   color: #8a8f86;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  margin-top: 4px;
 }
 
 .explainBox {
@@ -1600,11 +1776,47 @@ summary {
   padding: 14px 16px;
 }
 
-.explainBox strong {
-  font-size: 10.5px;
-  font-weight: 900;
-  letter-spacing: 0.11em;
+.exampleBox {
+  background: #f0eee4;
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+
+.exampleBox > div,
+.slotExplain > div,
+.groupSizeHead > div {
+  color: #1b1f1a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
+}
+
+.exampleBox > div {
+  color: #5a5f56;
+  font-size: 10.5px;
+  letter-spacing: 0.11em;
+}
+
+.exampleBox p {
+  color: #3d423a;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.slotExplain {
+  padding: 18px 0 8px;
+}
+
+.slotExplain p + p {
+  margin-top: 8px;
+}
+
+.groupSizeHead {
+  border-top: 2px solid #1b1f1a;
+  margin-top: 8px;
+  padding: 22px 0 10px;
 }
 
 .subBlock {
@@ -1612,12 +1824,8 @@ summary {
   padding: 18px 0;
 }
 
-.subBlock > strong,
-.toggleInfo strong,
-.settingMetric strong,
-.challengeRule strong {
-  font-size: 15px;
-  font-weight: 800;
+.subBlock > p {
+  margin: 6px 0 0;
 }
 
 .mappingRow {
@@ -1631,7 +1839,57 @@ summary {
 
 .mappingRow > span:first-child {
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid #dfddd3;
+}
+
+.seg button {
+  border: none;
+  background: #fff;
+  color: #1b1f1a;
+  padding: 6px 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.seg.compact button {
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+.seg button:hover {
+  background: #f5f4ec;
+  color: #1b1f1a;
+}
+
+.seg button.selected,
+.seg button.selected:hover {
+  background: #aece36;
+  color: #1b1f1a;
+}
+
+.seg button.selected.dark,
+.seg button.selected.dark:hover {
+  background: #1b1f1a;
+  color: #fff;
+}
+
+.guaranteeOn,
+.guaranteeOn:hover {
+  border-color: #1b1f1a;
+  background: #aece36;
+  color: #1b1f1a;
+}
+
+.sampleBtn:hover {
+  border-color: #aece36;
+  background: #aece36;
+  color: #1b1f1a;
 }
 
 .toggleInfo {
@@ -1644,18 +1902,39 @@ summary {
   padding: 16px 0;
 }
 
-.settingMetric {
+.toggleInfo.first {
+  border-top: 2px solid #1b1f1a;
+}
+
+.toggleInfo p {
+  margin: 3px 0 0;
+}
+
+.weightRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 180px) 92px;
+  gap: 0 20px;
   align-items: center;
   border-bottom: 1px solid #dfddd3;
   padding: 14px 0;
 }
 
-.settingMetric > span {
+.weightRow strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.weightRow p {
+  color: #8a8f86;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 2px 0 0;
+}
+
+.weightRow > span {
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
@@ -1681,11 +1960,26 @@ summary {
 
 .logicTable {
   border-top: 2px solid #1b1f1a;
-  margin-bottom: 18px;
+  margin: 0;
+  gap: 0 12px;
+  grid-template-columns: 96px minmax(0, 1fr);
 }
 
-.logicTable span,
+.logicTable span {
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #dfddd3;
+  padding: 12px 0;
+}
+
 .logicTable p {
+  color: #5a5f56;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 500;
   border-bottom: 1px solid #dfddd3;
   padding: 12px 0;
 }
@@ -1695,7 +1989,7 @@ summary {
   padding: 13px 0;
 }
 
-.habitMapRow > div {
+.habitMapRow > div:first-child {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -1703,13 +1997,37 @@ summary {
 
 .habitMapRow strong {
   font-size: 14px;
+  font-weight: 700;
 }
 
-.habitMapRow > span {
-  display: block;
-  color: #5a5f56;
-  font-size: 13px;
-  margin-top: 8px;
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.catChip {
+  border: 1px solid #dfddd3;
+  background: #fff;
+  color: #1b1f1a;
+  padding: 5px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.catChip:hover {
+  background: #f5f4ec;
+  color: #1b1f1a;
+}
+
+.catChip.on,
+.catChip.on:hover {
+  border-color: #1b1f1a;
+  background: #1b1f1a;
+  color: #fff;
 }
 
 .challengeRule {
@@ -1720,16 +2038,41 @@ summary {
 .challengeHead {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 14px;
 }
 
-.challengeHead > span:last-child {
+.challengeHead strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.challengeMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.challengeMeta > span {
   color: #8a8f86;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.jsonPaste {
+  padding-top: 18px;
+}
+
+.jsonPaste .fieldLabel {
+  margin-top: 0;
+}
+
+.jsonPaste button {
+  margin-top: 12px;
 }
 
 .tagList {
@@ -2047,6 +2390,27 @@ summary {
 .emptyLine {
   color: #5a5f56;
   padding: 40px 34px;
+}
+
+@media (max-width: 1100px) {
+  .countLabel {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .settingSection {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .weightRow {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+
+  .weightRow input[type="range"] {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 720px) {
