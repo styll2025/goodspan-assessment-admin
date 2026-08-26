@@ -653,6 +653,7 @@ p {
 
 .reasonTag {
   display: inline-block;
+  width: max-content;
   margin-top: 6px;
   padding: 4px 7px;
   font-size: 9.5px;
@@ -661,7 +662,7 @@ p {
   text-transform: uppercase;
 }
 
-.reasonTag.circle {
+.reasonTag.social {
   background: #ede6f3;
   color: #5c3a7a;
 }
@@ -773,11 +774,30 @@ summary {
 
 .scoreRow {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr) 3rem;
-  gap: 10px;
+  grid-template-columns: 62px minmax(0, 1fr) 48px;
+  gap: 12px;
   align-items: center;
   border-bottom: 1px solid #dfddd3;
-  padding: 9px 0;
+  padding: 11px 0;
+}
+
+.scoreRow > span,
+.scoreRow > strong {
+  color: #5a5f56;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.scoreRow > strong {
+  text-align: right;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreRow.winner > span,
+.scoreRow.winner > strong {
+  color: #1b1f1a;
 }
 
 .bar {
@@ -788,6 +808,10 @@ summary {
 .bar i {
   display: block;
   height: 100%;
+  background: #c6c4b8;
+}
+
+.scoreRow.winner .bar i {
   background: #aece36;
 }
 
@@ -807,7 +831,14 @@ summary {
   margin: 0;
 }
 
-.inspectorHead span {
+.scoreHeadMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.inspectorHead .scoreHeadMeta span {
   color: #8a8f86;
   font-size: 10.5px;
   font-weight: 800;
@@ -815,10 +846,76 @@ summary {
   text-transform: uppercase;
 }
 
+.scoreInfoBtn {
+  display: flex;
+  flex: none;
+  width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #8a8f86;
+  background: none;
+  color: #5a5f56;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.scoreInfoBtn:hover {
+  border-color: #2c4636;
+  color: #2c4636;
+}
+
+.scoreExplain {
+  border-left: 2px solid #2c4636;
+  background: #f0eee4;
+  margin-top: 11px;
+  padding: 11px 13px;
+}
+
+.scoreExplain > div {
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scoreExplain p {
+  color: #3d423a;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+}
+
+.scoreExplain p + p {
+  margin-top: 7px;
+}
+
+.unsureNote {
+  background: #f0eee4;
+  margin-top: 12px;
+  padding: 11px 13px;
+}
+
+.unsureNote p {
+  color: #5a5f56;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .inspector > h3 {
   border-bottom: 2px solid #1b1f1a;
   margin-top: 30px;
   padding-bottom: 12px;
+}
+
+.inspector .infoBox {
+  margin-top: 12px;
 }
 
 .inspectorHead + .muted,

@@ -14,7 +14,6 @@ import {
   TIME_TO_LEVEL,
   autoCluster,
   buildPlan,
-  habitScores,
   matchedChallengeTerms,
   normalizeRespondent,
   suggestCircleFor,
@@ -309,10 +308,12 @@ function RespondentPlan({
   circle: Circle | null;
   onOpenPlan: () => void;
 }) {
-  const scores = habitScores(respondent);
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
   const [sourceOpen, setSourceOpen] = useState<string | null>(null);
+  const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
+  const rankedPillars = [...PILLARS].sort((a, b) => plan.scores[b] - plan.scores[a]);
+  const goalUnsure = !respondent.focusArea || respondent.focusArea === 'unsure';
   const circleMembers = circle?.members.filter((member) => member.id !== respondent.id) ?? [];
   const circleCaption =
     circle && circle.members.length
@@ -417,7 +418,7 @@ function RespondentPlan({
                       </div>
                     )}
                     {reasonText && (
-                      <span className={item.reason === 'social' ? 'reasonTag circle' : 'reasonTag habit'}>
+                      <span className={item.reason === 'social' ? 'reasonTag social' : 'reasonTag habit'}>
                         {reasonText}
                       </span>
                     )}
@@ -462,21 +463,43 @@ function RespondentPlan({
         <aside className="inspector">
           <div className="inspectorHead">
             <h3>Pillar match</h3>
-            <span>Score</span>
+            <span className="scoreHeadMeta">
+              <span>Score</span>
+              <button
+                type="button"
+                className="scoreInfoBtn"
+                title="How the pillar score works"
+                onClick={() => setScoreInfoOpen((open) => !open)}
+              >
+                i
+              </button>
+            </span>
           </div>
-          <p className="muted">Habit answers are normalized so weaker current habits score higher, then challenge and stated-goal weights are applied.</p>
+          {scoreInfoOpen && (
+            <div className="scoreExplain">
+              <div>How the pillar score works</div>
+              <p>Each pillar starts with a base score — the average of that pillar's two habit answers, normalised so worse current habits score higher (more room to grow), plus a fixed boost for every main challenge they selected that maps to it. This base runs from 0 up to roughly 1.15–1.30, depending on the pillar.</p>
+              <p>On top of that base, their stated goal adds the Stated-goal influence weight set in Settings. At 100%, that weight isn't just “added” — the stated goal is used directly, overriding the base score entirely, and the numbers above are shown for reference only.</p>
+              <p>The highest total (base + goal weight, or the override) wins the Span. If they said “I'm not sure” for their goal, there's no pillar to apply the weight to, so this slider has no effect regardless of position.</p>
+            </div>
+          )}
           {plan.overridden && (
             <div className="infoBox">
               <strong>Stated goal override active</strong>
               <p>Scores below are shown for reference only; they did not decide the outcome.</p>
             </div>
           )}
-          <div className="scoreGrid">
-            {PILLARS.map((pillar) => (
-              <div key={pillar} className="scoreRow">
+          {goalUnsure && (
+            <div className="unsureNote">
+              <p>This person said they weren't sure which area to focus on, so the stated-goal slider has no effect — their Span is decided entirely by habit answers and stated challenges.</p>
+            </div>
+          )}
+          <div className="scoreGrid" style={{ opacity: plan.overridden ? 0.45 : 1 }}>
+            {rankedPillars.map((pillar, index) => (
+              <div key={pillar} className={index === 0 ? 'scoreRow winner' : 'scoreRow'}>
                 <span>{PILLAR_LABEL[pillar]}</span>
                 <div className="bar">
-                  <i style={{ width: `${Math.max(4, Math.min(100, scores[pillar] * 100))}%` }} />
+                  <i style={{ width: `${Math.min(100, Math.max(3, plan.scores[pillar] * 100))}%` }} />
                 </div>
                 <strong>{plan.scores[pillar].toFixed(2)}</strong>
               </div>
