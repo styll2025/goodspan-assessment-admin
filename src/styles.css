@@ -143,8 +143,7 @@ p {
   line-height: 1;
 }
 
-.brand span,
-.brandCompact span {
+.brand span {
   display: block;
   color: #5a5f56;
   font-size: 15px;
@@ -213,7 +212,7 @@ p {
   display: grid;
   align-content: center;
   flex: 0 0 auto;
-  gap: 1px;
+  gap: 0;
 }
 
 .brandCompact strong {
@@ -222,15 +221,18 @@ p {
   font-size: 20px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .brandCompact span {
+  display: block;
   color: #5a5f56;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.13em;
+  margin-top: -1px;
+  line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -415,11 +417,24 @@ p {
   margin: 8px 0 0;
 }
 
+.pageIntro .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
 .metaRows,
 .statsLine {
   display: flex;
   flex-wrap: wrap;
   gap: 0 40px;
+}
+
+.statsLine {
+  margin-top: 20px;
+}
+
+.respondentHero .metaRows {
   margin-top: 18px;
 }
 
@@ -1021,31 +1036,42 @@ summary {
 
 .habitSignal {
   border-bottom: 1px solid #dfddd3;
-  padding: 12px 0;
+  padding: 11px 0;
 }
 
 .habitSignal > div:first-child {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 10px;
 }
 
 .habitSignal strong {
   font-size: 13.5px;
+  font-weight: 600;
 }
 
 .habitSignal > div:first-child span {
   color: #5a5f56;
+  border-bottom: 1px dotted #b8bcb2;
+  cursor: help;
   font-size: 12.5px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .habitSignal > div:nth-child(2) {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+}
+
+.habitSignal .pill {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  padding: 3px 6px;
 }
 
 .habitSignal small {
@@ -1064,6 +1090,23 @@ summary {
   display: block;
   height: 100%;
   background: #2c4636;
+}
+
+.habitNote {
+  color: #8a8f86;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.profileTags {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.profileTags .tagGroup + .tagGroup {
+  margin-top: 0;
 }
 
 .tagGroup {
@@ -1093,7 +1136,25 @@ summary {
 }
 
 .suggestedCircle .sectionHead {
-  border-bottom-color: #dfddd3;
+  align-items: baseline;
+  border-bottom: 2px solid #dfddd3;
+  padding-bottom: 8px;
+}
+
+.suggestedCircle .sectionHead h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.emptyCircleNote {
+  max-width: 60ch;
+  color: #5a5f56;
+  font-size: 14.5px;
+  line-height: 1.55;
+  margin: 16px 0 0;
 }
 
 .circleMemberList {
@@ -1157,11 +1218,12 @@ summary {
   padding-bottom: 60px;
 }
 
-.pageIntro p {
+.pageIntro h1 + p {
   max-width: 70ch;
   color: #5a5f56;
   font-size: 15px;
   line-height: 1.55;
+  margin-top: 12px;
 }
 
 .stat {
@@ -1194,22 +1256,79 @@ summary {
   padding: 20px 24px 24px;
 }
 
+.circleHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.circleIndex {
+  color: #8a8f86;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.circle h3 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 12px 0 0;
+}
+
+.circleSize {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 4px 0 0;
+}
+
+.circleRule {
+  height: 2px;
+  background: #1b1f1a;
+  margin: 14px 0 2px;
+}
+
 .circle ul {
-  display: grid;
-  gap: 9px;
   list-style: none;
-  margin: 18px 0 0;
+  margin: 0;
   padding: 0;
 }
 
 .circle li {
   display: grid;
-  gap: 3px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid #eae8de;
+  padding: 9px 0;
 }
 
-.circle li span {
+.circleAvatar {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  background: #f0eee4;
+  color: #2c4636;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.circle li strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.circle li small {
+  display: block;
   color: #5a5f56;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .split,

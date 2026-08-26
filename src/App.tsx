@@ -8,6 +8,7 @@ import {
   CHALLENGE_KEYWORDS,
   PILLAR_BOOST_MAP,
   PILLAR_LABEL,
+  PILLAR_TINT,
   PILLARS,
   PRACTICES,
   SOCIAL_CATEGORIES,
@@ -26,6 +27,8 @@ type Tab = 'respondents' | 'circles' | 'library' | 'settings';
 const ADMIN_PASSCODE = 'goodspan-circle-2026';
 const DEFAULT_SHEET_URL =
   'https://script.google.com/macros/s/AKfycbxu69Ns0-WMnGqefvoJhY0WHw-4wAl1SikHjBqQywYzN_55oWRiVFibH6e5wEriSmJH/exec';
+const HABIT_SCORE_HELP =
+  'This answer converted to a 0–1 scale, where 1 is the weakest current habit and so the most room to grow. The two questions in a pillar are averaged to give that pillar\'s base score in Pillar match above, before challenge boosts and stated-goal weight are added.';
 const HABIT_KEYS: HabitKey[] = [
   'sleepConsistency',
   'sleepWindDown',
@@ -245,7 +248,9 @@ export default function App() {
         </section>
       )}
 
-      {tab === 'circles' && <CirclesView circles={circles} plans={plans} settings={settings} />}
+      {tab === 'circles' && (
+        <CirclesView circles={circles} respondentCount={respondents.length} settings={settings} />
+      )}
 
       {tab === 'library' && (
         <PracticeBank
@@ -312,13 +317,14 @@ function RespondentPlan({
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
   const [sourceOpen, setSourceOpen] = useState<string | null>(null);
   const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
+  const [habitInfoOpen, setHabitInfoOpen] = useState(false);
   const rankedPillars = [...PILLARS].sort((a, b) => plan.scores[b] - plan.scores[a]);
   const goalUnsure = !respondent.focusArea || respondent.focusArea === 'unsure';
   const circleMembers = circle?.members.filter((member) => member.id !== respondent.id) ?? [];
-  const circleCaption =
-    circle && circle.members.length
-      ? `${circle.members.length} people · ${circle.city || respondent.location || 'Location unknown'}`
-      : `Needs more people on ${PILLAR_LABEL[plan.pillarId]}`;
+  const pillarTint = PILLAR_TINT[plan.pillarId];
+  const circleCaption = circleMembers.length
+    ? `${circleMembers.length} ${circleMembers.length === 1 ? 'other' : 'others'} in their proposed Circle · ${respondent.location || 'Location unknown'}`
+    : `No circle yet — needs more people in this city on ${PILLAR_LABEL[plan.pillarId]}`;
   const goalRows: Array<[string, string]> = [
     ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : PILLAR_LABEL[respondent.focusArea]],
     ['Time available', labelForTime(respondent.timePerDay)],
@@ -511,7 +517,27 @@ function RespondentPlan({
             <Meta key={label} label={label} value={value} />
           ))}
 
-          <h3>Habit signals</h3>
+          <div className="inspectorHead">
+            <h3>Habit answers</h3>
+            <span className="scoreHeadMeta">
+              <span>Room to grow</span>
+              <button
+                type="button"
+                className="scoreInfoBtn"
+                title="How these scores work"
+                onClick={() => setHabitInfoOpen((open) => !open)}
+              >
+                i
+              </button>
+            </span>
+          </div>
+          {habitInfoOpen && (
+            <div className="scoreExplain">
+              <div>How these scores work</div>
+              <p>Each answer is converted to a 0–1 scale, where 1 is the weakest current habit and so the most room to grow. The two questions in a pillar are averaged to give that pillar's base score in Pillar match above, before challenge boosts and stated-goal weight are added.</p>
+              <p>A weak answer here also raises the priority of the categories it maps to, which is how two people on the same Span end up with different practices.</p>
+            </div>
+          )}
           <div className="habitSignalList">
             {HABIT_KEYS.map((habit) => {
               const score = normalizedHabitScore(respondent, habit);
@@ -520,57 +546,64 @@ function RespondentPlan({
                 <div className="habitSignal" key={habit}>
                   <div>
                     <strong>{HABIT_LABEL[habit]}</strong>
-                    <span>{score.toFixed(2)}</span>
+                    <span title={HABIT_SCORE_HELP}>{score.toFixed(2)}</span>
                   </div>
                   <div>
                     <Pill label={PILLAR_LABEL[pillar]} tone={pillar} />
-                    <small>Answer {respondent[habit]}</small>
+                    <small>{habitAnswerLabel(respondent, habit)}</small>
                   </div>
-                  <span className="miniBar"><i style={{ width: `${Math.max(4, Math.min(100, score * 100))}%` }} /></span>
+                  <span className="miniBar"><i style={{ width: `${Math.round(score * 100)}%` }} /></span>
                 </div>
               );
             })}
           </div>
-          <p className="muted">Worse current habits score higher, since they leave the most room to improve. The two questions per Span are averaged into the Pillar match above.</p>
+          <p className="habitNote">Worse current habits score higher, since they leave the most room to improve. The two questions per Span are averaged into the Pillar match above.</p>
 
           <h3>Profile</h3>
           {profileRows.map(([label, value]) => (
             <Meta key={label} label={label} value={value} />
           ))}
-          <div className="tagGroup">
-            <span>Motivations</span>
-            <TagList items={respondent.motivations} empty="-" />
-          </div>
-          <div className="tagGroup">
-            <span>Main challenges</span>
-            <TagList items={respondent.mainChallenges} empty="-" />
+          <div className="profileTags">
+            <div className="tagGroup">
+              <span>Motivations</span>
+              <TagList items={respondent.motivations} empty="—" />
+            </div>
+            <div className="tagGroup">
+              <span>Main challenges</span>
+              <TagList items={respondent.mainChallenges} empty="—" />
+            </div>
           </div>
         </aside>
       </section>
 
       <section className="suggestedCircle">
         <div className="sectionHead">
-          <div>
-            <h3>Suggested Circle</h3>
-          </div>
+          <h3>Suggested Circle</h3>
           <span>{circleCaption}</span>
         </div>
-        {circleMembers.length === 0 ? (
-          <p className="muted">Not enough respondents share this Span yet to suggest a Circle. Load more responses or sample data.</p>
-        ) : (
-          <div className="circleMemberList">
-            {circleMembers.map((member) => (
-              <div className="circleMember" key={member.id}>
-                <span>{initials(member.preferredName)}</span>
-                <div>
-                  <strong>{member.preferredName}</strong>
-                  <small>{member.ageBand} · {member.personality} · {member.workStatus || 'Work not stated'}</small>
-                </div>
-                <em>{member.location || '-'}</em>
-              </div>
-            ))}
-          </div>
+        {circleMembers.length === 0 && (
+          <p className="emptyCircleNote">Not enough respondents share this Span yet to suggest a Circle. Load more responses or sample data.</p>
         )}
+        <div className="circleMemberList">
+          <div className="circleMember">
+            <span style={{ background: pillarTint.bg, color: pillarTint.fg }}>{initials(respondent.preferredName)}</span>
+            <div>
+              <strong>{respondent.preferredName || 'Unnamed'}</strong>
+              <small>this person</small>
+            </div>
+            <em>—</em>
+          </div>
+          {circleMembers.map((member) => (
+            <div className="circleMember" key={member.id}>
+              <span>{initials(member.preferredName)}</span>
+              <div>
+                <strong>{member.preferredName}</strong>
+                <small>{member.ageBand || '—'} · {member.gender || '—'}</small>
+              </div>
+              <em>{title(member.personality)}</em>
+            </div>
+          ))}
+        </div>
       </section>
     </>
   );
@@ -722,6 +755,21 @@ function pillarForHabit(habit: HabitKey): Pillar {
   return 'mind';
 }
 
+function habitAnswerLabel(respondent: Respondent, habit: HabitKey) {
+  const stored = respondent.habitAnswers?.[habit];
+  if (stored) return stored;
+  const value = respondent[habit];
+  if (!Number.isFinite(value)) return 'Not answered';
+  const scale = HABIT_MAX[habit] === 3
+    ? ['Rarely', 'Sometimes', 'Often', 'Almost always']
+    : ['Rarely', 'Sometimes', 'Most days'];
+  return scale[value] ?? String(value);
+}
+
+function numberWord(value: number) {
+  return ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen'][value] ?? String(value);
+}
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -733,11 +781,11 @@ function initials(name: string) {
 
 function CirclesView({
   circles,
-  plans,
+  respondentCount,
   settings,
 }: {
   circles: Circle[];
-  plans: Map<string, Plan>;
+  respondentCount: number;
   settings: MatchingSettings;
 }) {
   return (
@@ -746,41 +794,49 @@ function CirclesView({
         <p className="eyebrow">Auto-clustered</p>
         <h1>Suggested Circles</h1>
         <p>
-          Two hard filters first - same Span, same city - then people are spread so each Circle mixes age, gender,
-          personality, work situation and home life as widely as possible. Groups run {settings.minCircleSize} to{' '}
-          {settings.maxCircleSize} people.
+          Two hard filters first — same Span, same city — then people are spread so each Circle mixes age, gender,
+          personality, life stage, work situation and home life as widely as possible. Groups run {numberWord(settings.minCircleSize)} to{' '}
+          {numberWord(settings.maxCircleSize)} people. Where a city does not have enough people on a Span yet, the group stays small and is flagged.
         </p>
         <div className="statsLine">
           <Stat label="Proposed Circles" value={circles.length} />
-          <Stat label="Respondents" value={circles.reduce((sum, circle) => sum + circle.members.length, 0)} />
+          <Stat label="Respondents" value={respondentCount} />
           <Stat label="Need attention" value={circles.filter((circle) => circle.needsMore || circle.mixed).length} />
         </div>
       </section>
       {circles.length === 0 ? (
-        <p className="emptyLine">No respondents loaded yet - load sample data to see proposed Circles.</p>
+        <p className="emptyLine">No respondents loaded yet — load sample data to see proposed Circles.</p>
       ) : (
         <div className="circleGrid">
-          {circles.map((circle, index) => (
-            <article key={`${circle.pillarId}-${circle.city}-${index}`} className="circle">
-              <div className="split">
-                <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
-                {(circle.needsMore || circle.mixed) && <Pill label={circle.needsMore ? 'Needs more' : 'Review size'} />}
-              </div>
-              <h3>Circle {index + 1}</h3>
-              <p className="muted">{circle.city}</p>
-              <ul>
-                {circle.members.map((member) => (
-                  <li key={member.id}>
-                    <strong>{member.preferredName}</strong>
-                    <span>
-                      {member.ageBand} · {member.gender || '-'} ·{' '}
-                      {plans.get(member.id) ? PILLAR_LABEL[plans.get(member.id)!.pillarId] : 'No plan'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
+          {circles.map((circle, index) => {
+            const sizeLabel = `${circle.members.length} ${circle.members.length === 1 ? 'member' : 'members'}${
+              circle.needsMore ? ' · needs more' : circle.mixed ? ' · consider splitting' : ''
+            }`;
+            return (
+              <article key={`${circle.pillarId}-${circle.city}-${index}`} className="circle">
+                <div className="circleHead">
+                  <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
+                  <span className="circleIndex">Circle {index + 1}</span>
+                </div>
+                <h3>{circle.members[0]?.location || circle.city}</h3>
+                <p className="circleSize" style={{ color: circle.needsMore || circle.mixed ? '#B4482E' : '#5A5F56' }}>
+                  {sizeLabel}
+                </p>
+                <div className="circleRule" />
+                <ul>
+                  {circle.members.map((member) => (
+                    <li key={member.id}>
+                      <span className="circleAvatar">{initials(member.preferredName)}</span>
+                      <span>
+                        <strong>{member.preferredName}</strong>
+                        <small>{member.location || '—'} · {member.ageBand || '—'}</small>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
         </div>
       )}
     </main>

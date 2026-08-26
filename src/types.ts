@@ -39,6 +39,7 @@ export type Respondent = {
   genderSelfDescribe?: string;
   location: string;
   personality: 'introvert' | 'ambivert' | 'extrovert';
+  habitAnswers?: Partial<Record<HabitKey, string>>;
   sleepConsistency: number;
   sleepWindDown: number;
   movementFrequency: number;

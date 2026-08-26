@@ -25,6 +25,13 @@ export const PILLAR_LABEL: Record<Pillar, string> = {
   mind: 'Mind',
 };
 
+export const PILLAR_TINT: Record<Pillar, { bg: string; fg: string }> = {
+  sleep: { bg: '#E7EEF8', fg: '#2C4A6B' },
+  eat: { bg: '#F3ECDD', fg: '#7A5A20' },
+  move: { bg: '#EAF2D2', fg: '#4A6B22' },
+  mind: { bg: '#EDE6F3', fg: '#5C3A7A' },
+};
+
 export const TIME_TO_LEVEL: Record<TimePerDay, Level> = {
   under5: 'gentle',
   '5to15': 'gentle',
@@ -123,6 +130,13 @@ export function normalizeRespondent(raw: Record<string, unknown>, index = 0): Re
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   };
+  const habitAnswers: Partial<Record<HabitKey, string>> = {};
+  (Object.keys(HABIT_MAX) as HabitKey[]).forEach((key) => {
+    const value = raw[key];
+    if (typeof value === 'string' && value.trim() && !Number.isFinite(Number(value))) {
+      habitAnswers[key] = value.trim();
+    }
+  });
 
   return {
     id: String(raw.id ?? raw._id ?? raw.email ?? `respondent-${index}`),
@@ -139,6 +153,7 @@ export function normalizeRespondent(raw: Record<string, unknown>, index = 0): Re
     genderSelfDescribe: stringValue(raw.genderSelfDescribe) || undefined,
     location: stringValue(raw.location),
     personality: personalityValue(raw.personality),
+    habitAnswers,
     sleepConsistency: habit('sleepConsistency'),
     sleepWindDown: habit('sleepWindDown'),
     movementFrequency: habit('movementFrequency'),
