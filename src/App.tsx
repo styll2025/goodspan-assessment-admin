@@ -24,6 +24,31 @@ import { generateSampleRespondents } from './lib/sampleData';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
+type Score = 1 | 2 | 3;
+const SCORES: Score[] = [1, 2, 3];
+const SCORE_LABEL: Record<Score, string> = {
+  1: '1 low',
+  2: '2 medium',
+  3: '3 high',
+};
+const EFFORT_TIP = {
+  title: 'How effort is scored',
+  body: 'Activation energy needed to start, regardless of Level.',
+  scale: [
+    '1 low — under about 2 minutes, no prep or equipment, doable immediately, anywhere',
+    '2 medium — a few minutes, minor prep, or a specific moment (for example before bed, or at a meal)',
+    '3 high — needs planning, equipment, a time block, or coordinating with someone',
+  ],
+};
+const VISIBILITY_TIP = {
+  title: 'How visibility is scored',
+  body: 'How quickly the person will notice an actual wellbeing benefit — not whether they completed the task. Logging a number is not itself a felt benefit.',
+  scale: [
+    '1 low — slow or cumulative, hard to attribute to any single instance',
+    '2 medium — noticeable within about a week of repeating it',
+    '3 high — noticeable the same day or session',
+  ],
+};
 
 const ADMIN_PASSCODE = 'goodspan-circle-2026';
 const DEFAULT_SHEET_URL =
@@ -55,6 +80,8 @@ export default function App() {
   const [status, setStatus] = useState('Not connected - using local data');
   const [practicePillar, setPracticePillar] = useState<Pillar | 'all'>('all');
   const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
+  const [practiceEffort, setPracticeEffort] = useState<Score | 'all'>('all');
+  const [practiceVisibility, setPracticeVisibility] = useState<Score | 'all'>('all');
   const [practiceQuery, setPracticeQuery] = useState('');
   const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
   const [swaps, setSwaps] = useState<Record<string, string>>({});
@@ -301,9 +328,13 @@ export default function App() {
         <PracticeBank
           pillar={practicePillar}
           level={practiceLevel}
+          effort={practiceEffort}
+          visibility={practiceVisibility}
           query={practiceQuery}
           onPillar={setPracticePillar}
           onLevel={setPracticeLevel}
+          onEffort={setPracticeEffort}
+          onVisibility={setPracticeVisibility}
           onQuery={setPracticeQuery}
         />
       )}
@@ -921,16 +952,24 @@ function CirclesView({
 function PracticeBank({
   pillar,
   level,
+  effort,
+  visibility,
   query,
   onPillar,
   onLevel,
+  onEffort,
+  onVisibility,
   onQuery,
 }: {
   pillar: Pillar | 'all';
   level: Level | 'all';
+  effort: Score | 'all';
+  visibility: Score | 'all';
   query: string;
   onPillar: (pillar: Pillar | 'all') => void;
   onLevel: (level: Level | 'all') => void;
+  onEffort: (effort: Score | 'all') => void;
+  onVisibility: (visibility: Score | 'all') => void;
   onQuery: (query: string) => void;
 }) {
   const rows = PILLARS.flatMap((pillarId) =>
@@ -942,6 +981,8 @@ function PracticeBank({
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
       (level === 'all' || row.practice.level === level) &&
+      (effort === 'all' || row.practice.effort === effort) &&
+      (visibility === 'all' || row.practice.visibility === visibility) &&
       (!query || text.includes(query.toLowerCase()))
     );
   });
@@ -959,19 +1000,51 @@ function PracticeBank({
         <p>All practices across the four core Span pillars.</p>
       </section>
       <div className="filterBar">
-        <div className="segmented">
-          {(['all', ...PILLARS] as Array<Pillar | 'all'>).map((item) => (
-            <button key={item} className={pillar === item ? 'active' : ''} onClick={() => onPillar(item)}>
-              {item === 'all' ? 'All' : PILLAR_LABEL[item]}
-            </button>
-          ))}
-        </div>
-        <div className="segmented">
-          {(['all', 'gentle', 'moderate', 'deep'] as Array<Level | 'all'>).map((item) => (
-            <button key={item} className={level === item ? 'active' : ''} onClick={() => onLevel(item)}>
-              {item === 'all' ? 'All levels' : title(item)}
-            </button>
-          ))}
+        <div className="filterCluster">
+          <BankFilter
+            id="library-pillar"
+            label="Pillar"
+            value={pillar}
+            options={[
+              { value: 'all', label: 'All pillars' },
+              ...PILLARS.map((item) => ({ value: item, label: PILLAR_LABEL[item] })),
+            ]}
+            onChange={(value) => onPillar(value === 'all' ? 'all' : (value as Pillar))}
+          />
+          <BankFilter
+            id="library-level"
+            label="Level"
+            value={level}
+            options={[
+              { value: 'all', label: 'All levels' },
+              { value: 'gentle', label: 'Gentle' },
+              { value: 'moderate', label: 'Moderate' },
+              { value: 'deep', label: 'Deep' },
+            ]}
+            onChange={(value) => onLevel(value === 'all' ? 'all' : (value as Level))}
+          />
+          <BankFilter
+            id="library-effort"
+            label="Effort"
+            value={effort === 'all' ? 'all' : String(effort)}
+            options={[
+              { value: 'all', label: 'All effort' },
+              ...SCORES.map((item) => ({ value: String(item), label: SCORE_LABEL[item] })),
+            ]}
+            onChange={(value) => onEffort(value === 'all' ? 'all' : (Number(value) as Score))}
+            tip={EFFORT_TIP}
+          />
+          <BankFilter
+            id="library-visibility"
+            label="Visibility"
+            value={visibility === 'all' ? 'all' : String(visibility)}
+            options={[
+              { value: 'all', label: 'All visibility' },
+              ...SCORES.map((item) => ({ value: String(item), label: SCORE_LABEL[item] })),
+            ]}
+            onChange={(value) => onVisibility(value === 'all' ? 'all' : (Number(value) as Score))}
+            tip={VISIBILITY_TIP}
+          />
         </div>
         <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search practice text..." />
         <span className="shownLabel">{rows.length} shown</span>
@@ -987,26 +1060,8 @@ function PracticeBank({
             </div>
             <div className="bankGrid bankHead">
               <span>Level</span>
-              <BankScoreTip
-                label="Effort"
-                title="How effort is scored"
-                body="Activation energy needed to start, regardless of Level."
-                scale={[
-                  '1 low — under about 2 minutes, no prep or equipment, doable immediately, anywhere',
-                  '2 medium — a few minutes, minor prep, or a specific moment (for example before bed, or at a meal)',
-                  '3 high — needs planning, equipment, a time block, or coordinating with someone',
-                ]}
-              />
-              <BankScoreTip
-                label="Visibility"
-                title="How visibility is scored"
-                body="How quickly the person will notice an actual wellbeing benefit — not whether they completed the task. Logging a number is not itself a felt benefit."
-                scale={[
-                  '1 low — slow or cumulative, hard to attribute to any single instance',
-                  '2 medium — noticeable within about a week of repeating it',
-                  '3 high — noticeable the same day or session',
-                ]}
-              />
+              <BankScoreTip label="Effort" {...EFFORT_TIP} />
+              <BankScoreTip label="Visibility" {...VISIBILITY_TIP} />
               <span>Category</span>
               <span>Practice</span>
               <span>Keywords matched</span>
@@ -1042,20 +1097,62 @@ function PracticeBank({
   );
 }
 
+function BankFilter({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  tip,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  tip?: { title: string; body: string; scale: string[] };
+}) {
+  return (
+    <div className="filterField">
+      {tip ? (
+        <BankScoreTip label={label} htmlFor={id} {...tip} />
+      ) : (
+        <label className="filterLabel" htmlFor={id}>
+          {label}
+        </label>
+      )}
+      <select
+        id={id}
+        className="filterSelect"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function BankScoreTip({
   label,
   title,
   body,
   scale,
+  htmlFor,
 }: {
   label: string;
   title: string;
   body: string;
   scale: string[];
+  htmlFor?: string;
 }) {
   return (
     <span className="bankHeadTip">
-      {label}
+      {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
       <button type="button" className="scoreInfoBtn" aria-label={title}>
         i
       </button>

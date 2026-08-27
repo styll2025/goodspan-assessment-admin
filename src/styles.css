@@ -1406,10 +1406,86 @@ summary {
   padding: 14px 34px;
 }
 
-.filterBar input {
-  max-width: 360px;
+.filterBar input,
+.filterSelect {
+  height: 40px;
   border-color: #1b1f1a;
-  background: #fff;
+  background-color: #fff;
+}
+
+.filterBar input {
+  align-self: end;
+  flex: 1 1 200px;
+  max-width: 280px;
+  min-width: 180px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filterCluster {
+  display: grid;
+  flex: 1 1 560px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .filterCluster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.filterLabel,
+.filterField .bankHeadTip {
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.filterLabel,
+.filterField .bankHeadTip label {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.filterSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 2px solid #1b1f1a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231b1f1a' d='M1.1 1.2 6 6.1l4.9-4.9 1.1 1.1L6 8.3 0 2.3z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: #1b1f1a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0 34px 0 12px;
+  text-transform: uppercase;
+}
+
+.filterSelect:hover {
+  background-color: #fbfaf4;
+}
+
+.filterField .bankTooltip {
+  z-index: 50;
 }
 
 .segmented {
@@ -1431,11 +1507,12 @@ summary {
 }
 
 .shownLabel {
-  align-self: center;
+  align-self: end;
   color: #5a5f56;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.1em;
+  padding-bottom: 12px;
   text-transform: uppercase;
 }
 
