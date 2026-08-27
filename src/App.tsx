@@ -379,6 +379,7 @@ function RespondentPlan({
     ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : PILLAR_LABEL[respondent.focusArea]],
     ['Time available', labelForTime(respondent.timePerDay)],
     ['Challenges', respondent.mainChallenges.length ? respondent.mainChallenges.join(', ') : '-'],
+    ['Barriers', respondent.barriers.length ? respondent.barriers.join(', ') : '-'],
     ['Motivations', respondent.motivations.length ? respondent.motivations.join(', ') : '-'],
   ];
   const profileRows: Array<[string, string]> = [
@@ -484,6 +485,7 @@ function RespondentPlan({
                         {reasonText}
                       </span>
                     )}
+                    {item.startWithThis && <span className="reasonTag start">Start with this</span>}
                     <h4>{item.practice.text}</h4>
                     {item.practice.why && <p className="practiceWhy">{item.practice.why}</p>}
                     {source && (
@@ -754,7 +756,7 @@ function PlanDocument({
               <article className="planPractice" key={`${item.category}-${item.practice.text}`} data-plancard>
                 <span>{index + 1}</span>
                 <div>
-                  <p className="eyebrow">{item.category}</p>
+                  <p className="eyebrow">{item.category}{item.startWithThis ? ' · Start with this' : ''}</p>
                   <h3>{item.practice.text}</h3>
                   {item.practice.why && <p>{item.practice.why}</p>}
                   {item.practice.evidence && (

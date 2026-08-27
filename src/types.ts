@@ -24,6 +24,15 @@ export type Challenge =
   | 'Difficulty unwinding'
   | 'Low motivation/accountability';
 
+export type Barrier =
+  | "I don't have much time"
+  | 'I struggle to stay consistent'
+  | "I don't know where to start"
+  | 'I lose motivation without support or accountability'
+  | 'My schedule changes a lot'
+  | 'I prefer to do things on my own'
+  | "Nothing major — I'm ready to start";
+
 export type Respondent = {
   id: string;
   preferredName: string;
@@ -32,6 +41,7 @@ export type Respondent = {
   motivations: string[];
   focusArea: Pillar | 'unsure';
   mainChallenges: Challenge[];
+  barriers: Barrier[];
   ageBand: '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
   workStatus: string;
   homeLife: string;
@@ -58,6 +68,8 @@ export type Practice = {
   why: string;
   evidence: string;
   references: string[];
+  effort: 1 | 2 | 3;
+  visibility: 1 | 2 | 3;
 };
 
 export type PracticesData = Record<Pillar, Record<string, Practice[]>>;
@@ -75,6 +87,7 @@ export type PlanItem = {
   score: number;
   reason: PlanItemReason;
   alternatives: Practice[];
+  startWithThis: boolean;
 };
 
 export type Plan = {

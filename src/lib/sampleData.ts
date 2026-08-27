@@ -66,6 +66,7 @@ export function generateSampleRespondents(): Respondent[] {
         motivations: ['Build healthier habits', index % 2 ? 'Stay accountable' : 'Feel more energetic'],
         focusArea: cohort.pillar,
         mainChallenges: [challenges[i % challenges.length]],
+        barriers: [['I struggle to stay consistent', "I don't have much time"], ['I prefer to do things on my own'], ["Nothing major — I'm ready to start"], ['I lose motivation without support or accountability']][index % 4] as Respondent['barriers'],
         ageBand: ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'][index % 6] as Respondent['ageBand'],
         workStatus: ['Studying', 'Working full-time', 'Working part-time or freelance', 'Between jobs', 'Retired or semi-retired'][index % 5],
         homeLife: ['No children at home', 'Parent of young children', 'Parent of teens or adult children', 'Caring for a family member'][index % 4],

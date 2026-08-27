@@ -1,5 +1,6 @@
 import practicesData from '../data/practices-data.json';
 import type {
+  Barrier,
   Challenge,
   Circle,
   HabitKey,
@@ -113,6 +114,18 @@ export const SOCIAL_CATEGORIES: Record<Pillar, string[]> = {
   move: ['Social & Accountability'],
 };
 
+export const BARRIER_OPTIONS: Barrier[] = [
+  "I don't have much time",
+  'I struggle to stay consistent',
+  "I don't know where to start",
+  'I lose motivation without support or accountability',
+  'My schedule changes a lot',
+  'I prefer to do things on my own',
+  "Nothing major — I'm ready to start",
+];
+
+export const AGE_BAND_ORDER: Respondent['ageBand'][] = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+
 export const DEFAULT_SETTINGS: MatchingSettings = {
   statedGoalWeight: 0.25,
   challengeBoost: 0.15,
@@ -166,6 +179,7 @@ export function normalizeRespondent(raw: Record<string, unknown>, index = 0): Re
     motivations: arrayValue(raw.motivations),
     focusArea: pillarOrUnsure(raw.focusArea),
     mainChallenges: arrayValue(raw.mainChallenges).filter(isChallenge),
+    barriers: arrayValue(raw.barriers).filter(isBarrier),
     ageBand: ageBandValue(raw.ageBand),
     workStatus: stringValue(raw.workStatus ?? raw.workSituation),
     homeLife: stringValue(raw.homeLife),
@@ -213,10 +227,10 @@ export function computeRecommendation(
 
   const levelId = settings.timeToLevel[respondent.timePerDay] ?? TIME_TO_LEVEL[respondent.timePerDay] ?? 'moderate';
   const focusArea = respondent.focusArea;
-  const hasStatedGoal = focusArea !== 'unsure';
+  const hasStatedGoal = Boolean(focusArea) && focusArea !== 'unsure';
   const statedGoalWeight = settings.statedGoalWeight;
 
-  if (statedGoalWeight === 1 && hasStatedGoal) {
+  if (statedGoalWeight >= 1 && hasStatedGoal) {
     return { pillarId: focusArea, levelId, scores, overridden: true };
   }
 
@@ -281,7 +295,7 @@ export function buildPlan(
     levelId,
     overridden: rec.overridden,
     scores: rec.scores,
-    items,
+    items: flagStartWithThis(items, rec.pillarId, respondent),
   };
 }
 
@@ -392,11 +406,11 @@ function buildSlots(
   return slots;
 }
 
-function categoryHabitDriver(
+export function categoryHabitDriver(
   pillarId: Pillar,
   categoryName: string,
   respondent: Respondent,
-  settings: MatchingSettings,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
 ): { habitKey: HabitKey; weakness: number } | null {
   const map = settings.habitCategoryMap[pillarId];
   let best: { habitKey: HabitKey; weakness: number } | null = null;
@@ -422,12 +436,65 @@ function toPlanItem(
     score: practice.score,
     reason,
     alternatives: category.practices.filter((item) => item.text !== practice.text),
+    startWithThis: false,
   };
 }
 
-function buildDiverseGroups(
+export function startScore(
+  item: PlanItem,
+  pillarId: Pillar,
+  respondent: Respondent,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
+): number {
+  const effort = item.practice.effort;
+  const visibility = item.practice.visibility;
+  let score = (4 - effort) * 2 + visibility;
+
+  const habitDriver = categoryHabitDriver(pillarId, item.category, respondent, settings);
+  if (habitDriver && habitDriver.weakness < 0.99) {
+    score += (1 - habitDriver.weakness) * 4;
+  }
+
+  const barriers = respondent.barriers ?? [];
+  if (barriers.includes("I don't have much time") && effort === 1) score += 3;
+  if (barriers.includes('My schedule changes a lot') && effort === 1) score += 3;
+  if (barriers.includes('I struggle to stay consistent') && effort === 1) score += 3;
+  if (barriers.includes("I don't know where to start") && effort === 1 && visibility >= 2) score += 3;
+  if (
+    barriers.includes('I lose motivation without support or accountability') &&
+    SOCIAL_CATEGORIES[pillarId].includes(item.category)
+  ) {
+    score += 3;
+  }
+
+  return score;
+}
+
+export function flagStartWithThis(
+  planItems: PlanItem[],
+  pillarId: Pillar,
+  respondent: Respondent,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
+): PlanItem[] {
+  const preferAlone = (respondent.barriers ?? []).includes('I prefer to do things on my own');
+  const socialNames = SOCIAL_CATEGORIES[pillarId];
+  const eligible = planItems.filter((item) => {
+    if (item.practice.visibility < 2) return false;
+    if (preferAlone && socialNames.includes(item.category)) return false;
+    return true;
+  });
+  const ranked = [...eligible].sort((a, b) => {
+    const delta = startScore(b, pillarId, respondent, settings) - startScore(a, pillarId, respondent, settings);
+    if (delta !== 0) return delta;
+    return planItems.indexOf(a) - planItems.indexOf(b);
+  });
+  const flagged = new Set(ranked.slice(0, Math.min(2, ranked.length)));
+  return planItems.map((item) => ({ ...item, startWithThis: flagged.has(item) }));
+}
+
+export function buildDiverseGroups(
   pool: Respondent[],
-  settings: MatchingSettings,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
 ): Array<Pick<Circle, 'members' | 'needsMore' | 'mixed'>> {
   const { minCircleSize, maxCircleSize, targetCircleSize } = settings;
   const people = [...pool].sort((a, b) => a.preferredName.localeCompare(b.preferredName));
@@ -477,7 +544,6 @@ function clashScore(group: Respondent[], candidate: Respondent, settings: Matchi
       same(member.ageBand, candidate.ageBand) * weights.ageBand +
       same(member.gender, candidate.gender) * weights.gender +
       same(member.personality, candidate.personality) * weights.personality +
-      same(member.lifeStage || '', candidate.lifeStage || '') * weights.lifeStage +
       same(member.workStatus, candidate.workStatus) * weights.work +
       same(member.homeLife, candidate.homeLife) * weights.home
     );
@@ -509,6 +575,10 @@ function arrayValue(value: unknown): string[] {
 
 function isChallenge(value: string): value is Challenge {
   return Object.prototype.hasOwnProperty.call(PILLAR_BOOST_MAP, value);
+}
+
+function isBarrier(value: string): value is Barrier {
+  return (BARRIER_OPTIONS as string[]).includes(value);
 }
 
 function pillarOrUnsure(value: unknown): Pillar | 'unsure' {

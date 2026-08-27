@@ -701,6 +701,12 @@ p {
   color: #2c4636;
 }
 
+.reasonTag.start {
+  background: #f3ecd8;
+  color: #7a5a20;
+  margin-left: 6px;
+}
+
 .evidenceRow {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
