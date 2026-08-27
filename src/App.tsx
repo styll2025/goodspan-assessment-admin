@@ -23,7 +23,7 @@ import {
 import { generateSampleRespondents } from './lib/sampleData';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, TimePerDay } from './types';
 
-type Tab = 'respondents' | 'circles' | 'library' | 'settings';
+type Tab = 'members' | 'circles' | 'library' | 'settings';
 
 const ADMIN_PASSCODE = 'goodspan-circle-2026';
 const DEFAULT_SHEET_URL =
@@ -45,7 +45,7 @@ export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('gs_admin_authed') === 'true');
   const [passcodeInput, setPasscodeInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [tab, setTab] = useState<Tab>('respondents');
+  const [tab, setTab] = useState<Tab>('members');
   const [respondents, setRespondents] = useState<Respondent[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [planOpen, setPlanOpen] = useState(false);
@@ -122,7 +122,7 @@ export default function App() {
 
   function loadSamples() {
     const sample = generateSampleRespondents();
-    applyRespondents(sample, `${sample.length} sample respondents loaded`);
+    applyRespondents(sample, `${sample.length} sample members loaded`);
     setSheetConnected(false);
   }
 
@@ -196,7 +196,7 @@ export default function App() {
     );
   }
 
-  const isPlanMode = Boolean(tab === 'respondents' && planOpen && selected && selectedPlan);
+  const isPlanMode = Boolean(tab === 'members' && planOpen && selected && selectedPlan);
 
   return (
     <div className="appShell">
@@ -208,7 +208,7 @@ export default function App() {
               <span>Practice Matcher</span>
             </div>
             <nav>
-              {(['respondents', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
+              {(['members', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
                 <button
                   key={item}
                   className={tab === item ? 'active navButton' : 'navButton'}
@@ -224,17 +224,17 @@ export default function App() {
           </div>
           <div className="topStatus">
             <span className="dot" />
-            <span className="countLabel">{respondents.length} {respondents.length === 1 ? 'respondent' : 'respondents'}</span>
+            <span className="countLabel">{respondents.length} {respondents.length === 1 ? 'member' : 'members'}</span>
             <button className="textButton" onClick={logout}>Log out</button>
           </div>
         </header>
       )}
 
-      {tab === 'respondents' && planOpen && selected && selectedPlan && (
+      {tab === 'members' && planOpen && selected && selectedPlan && (
         <PlanDocument respondent={selected} plan={selectedPlan} onBack={() => setPlanOpen(false)} />
       )}
 
-      {tab === 'respondents' && !planOpen && (
+      {tab === 'members' && !planOpen && (
         <section className="respondentPage">
           <aside className="sidebar">
             <div className="sidebarSearch">
@@ -248,7 +248,7 @@ export default function App() {
               <div className="sidebarEmpty">
                 {respondents.length === 0
                   ? 'No responses loaded. Use Sample data to test the matching logic.'
-                  : 'No respondents match this search.'}
+                  : 'No members match this search.'}
               </div>
             )}
             {filtered.map((respondent) => {
@@ -340,9 +340,9 @@ function NoRespondents({ onSample }: { onSample: () => void }) {
   return (
     <div className="noRespondents">
       <p className="eyebrow">Nothing to match yet</p>
-      <h2>No respondents</h2>
+      <h2>No members</h2>
       <div className="rule" />
-      <p>Responses submitted through the end-user assessment appear here automatically. To test the matching logic now, load a batch of realistic sample respondents.</p>
+      <p>Responses submitted through the end-user assessment appear here automatically. To test the matching logic now, load a batch of realistic sample members.</p>
       <button className="primary" onClick={onSample}>Load sample data</button>
     </div>
   );
@@ -394,7 +394,7 @@ function RespondentPlan({
   return (
     <>
       <section className="respondentHero">
-        <p className="eyebrow">Respondent</p>
+        <p className="eyebrow">Member</p>
         <h1>{respondent.preferredName || 'Unnamed'}</h1>
         <div className="metaRows">
           <Meta label="Email" value={respondent.email || '-'} />
@@ -475,8 +475,8 @@ function RespondentPlan({
                     {infoOpen === itemKey && (
                       <div className="infoBox swapInfo">
                         <strong>How this slot was filled, and what Swap does</strong>
-                        <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the respondent's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                        <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this respondent only and leaves the Practice Bank untouched.</p>
+                        <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the member's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
+                        <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this member only and leaves the Practice Bank untouched.</p>
                       </div>
                     )}
                     {reasonText && (
@@ -655,7 +655,7 @@ function RespondentPlan({
           <span>{circleCaption}</span>
         </div>
         {circleMembers.length === 0 && (
-          <p className="emptyCircleNote">Not enough respondents share this Span yet to suggest a Circle. Load more responses or sample data.</p>
+          <p className="emptyCircleNote">Not enough members share this Span yet to suggest a Circle. Load more responses or sample data.</p>
         )}
         <div className="circleMemberList">
           <div className="circleMember">
@@ -703,7 +703,7 @@ function PlanDocument({
   return (
     <main className="planDoc">
       <div className="planToolbar" data-noprint>
-        <button onClick={onBack}>← Back to respondent</button>
+        <button onClick={onBack}>← Back to member</button>
         <div>
           <span>{respondent.preferredName || 'Unnamed'} · {PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
           <button className="primary" onClick={() => window.print()}>Download Plan</button>
@@ -873,12 +873,12 @@ function CirclesView({
         </p>
         <div className="statsLine">
           <Stat label="Proposed Circles" value={circles.length} />
-          <Stat label="Respondents" value={respondentCount} />
+          <Stat label="Members" value={respondentCount} />
           <Stat label="Need attention" value={circles.filter((circle) => circle.needsMore || circle.mixed).length} />
         </div>
       </section>
       {circles.length === 0 ? (
-        <p className="emptyLine">No respondents loaded yet — load sample data to see proposed Circles.</p>
+        <p className="emptyLine">No members loaded yet — load sample data to see proposed Circles.</p>
       ) : (
         <div className="circleGrid">
           {circles.map((circle, index) => {
@@ -1105,7 +1105,7 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Matching and display</h2>
-          <p>How the matcher weighs a respondent's stated goal, and what it shows. These apply to every respondent.</p>
+          <p>How the matcher weighs a member's stated goal, and what it shows. These apply to every member.</p>
         </div>
         <div className="settingBody">
           <div className="sliderBlock">
@@ -1131,7 +1131,7 @@ function SettingsView({
 
           <div className="subBlock">
             <strong>Time to level</strong>
-            <p>Level comes straight from stated daily time, with no scoring. Admins can still override it per respondent.</p>
+            <p>Level comes straight from stated daily time, with no scoring. Admins can still override it per member.</p>
             {timeKeys.map((time) => (
               <div className="mappingRow" key={time}>
                 <span>{labelForTime(time)}</span>
@@ -1167,7 +1167,7 @@ function SettingsView({
 
           <div className="slotExplain">
             <div>How the five slots are chosen</div>
-            <p>Two steps. First, the best-scoring Circle-facing category is given a slot outright. Then every remaining category is ranked on its best practice's keyword score plus a bonus when it maps to a habit question the respondent answered weakly, and the top four take the remaining slots. Each winning category contributes its own top-scoring practice.</p>
+            <p>Two steps. First, the best-scoring Circle-facing category is given a slot outright. Then every remaining category is ranked on its best practice's keyword score plus a bonus when it maps to a habit question the member answered weakly, and the top four take the remaining slots. Each winning category contributes its own top-scoring practice.</p>
             <p>This is what makes two people on the same Span differ: bad bedtime consistency pulls in Circadian Alignment, a poor wind-down pulls in Wind Down.</p>
           </div>
 
@@ -1291,7 +1291,7 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Habits and goals</h2>
-          <p>The three things a respondent tells us do different work. Habits decide the Span and, within it, which categories are prioritised. The stated goal only nudges the Span. Challenges pick the practice inside each category, through the keywords below.</p>
+          <p>The three things a member tells us do different work. Habits decide the Span and, within it, which categories are prioritised. The stated goal only nudges the Span. Challenges pick the practice inside each category, through the keywords below.</p>
           <button
             type="button"
             className="danger"
@@ -1348,7 +1348,7 @@ function SettingsView({
         <div>
           <h2>Challenges, keywords and pillar boosts</h2>
           <p>
-            Every practice gets <strong>+{settings.keywordWeight} points</strong> for every keyword match between a respondent's selected challenges and the practice's text or category. Matching is plain substring, lowercase, so stems like <strong>meditat</strong> catch both meditate and meditation. The pillar on the right is the one that challenge boosts in Span scoring — set it to none to take the challenge out of pillar scoring while keeping its keywords.
+            Every practice gets <strong>+{settings.keywordWeight} points</strong> for every keyword match between a member's selected challenges and the practice's text or category. Matching is plain substring, lowercase, so stems like <strong>meditat</strong> catch both meditate and meditation. The pillar on the right is the one that challenge boosts in Span scoring — set it to none to take the challenge out of pillar scoring while keeping its keywords.
           </p>
           <button
             type="button"
@@ -1420,13 +1420,13 @@ function SettingsView({
       <section className="settingSection last">
         <div>
           <h2>Testing and reset</h2>
-          <p>Sample respondents let you exercise the matching logic without live data. Resetting clears every manual override you have made this session.</p>
+          <p>Sample members let you exercise the matching logic without live data. Resetting clears every manual override you have made this session.</p>
         </div>
         <div className="settingBody">
           <div className="toggleInfo first">
             <div>
               <strong>Load sample data</strong>
-              <p>Replaces the current list with 30 generated respondents, grouped into city and Span cohorts so Circles can actually form.</p>
+              <p>Replaces the current list with 30 generated members, grouped into city and Span cohorts so Circles can actually form.</p>
             </div>
             <button className="sampleBtn" type="button" onClick={onSample}>Load sample</button>
           </div>
