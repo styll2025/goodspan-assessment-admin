@@ -987,6 +987,26 @@ function PracticeBank({
             </div>
             <div className="bankGrid bankHead">
               <span>Level</span>
+              <BankScoreTip
+                label="Effort"
+                title="How effort is scored"
+                body="Activation energy needed to start, regardless of Level."
+                scale={[
+                  '1 low — under about 2 minutes, no prep or equipment, doable immediately, anywhere',
+                  '2 medium — a few minutes, minor prep, or a specific moment (for example before bed, or at a meal)',
+                  '3 high — needs planning, equipment, a time block, or coordinating with someone',
+                ]}
+              />
+              <BankScoreTip
+                label="Visibility"
+                title="How visibility is scored"
+                body="How quickly the person will notice an actual wellbeing benefit — not whether they completed the task. Logging a number is not itself a felt benefit."
+                scale={[
+                  '1 low — slow or cumulative, hard to attribute to any single instance',
+                  '2 medium — noticeable within about a week of repeating it',
+                  '3 high — noticeable the same day or session',
+                ]}
+              />
               <span>Category</span>
               <span>Practice</span>
               <span>Keywords matched</span>
@@ -997,6 +1017,8 @@ function PracticeBank({
               return (
                 <article key={`${row.pillarId}-${row.category}-${row.practice.text}`} className="bankGrid bankRow">
                   <span className={`levelText ${row.practice.level}`}>{row.practice.level}</span>
+                  <span className="scoreCol">{row.practice.effort}</span>
+                  <span className="scoreCol">{row.practice.visibility}</span>
                   <span className="categoryText">{row.category}</span>
                   <strong>{row.practice.text}</strong>
                   <span className="keywordCell">
@@ -1017,6 +1039,34 @@ function PracticeBank({
         ))
       )}
     </main>
+  );
+}
+
+function BankScoreTip({
+  label,
+  title,
+  body,
+  scale,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  scale: string[];
+}) {
+  return (
+    <span className="bankHeadTip">
+      {label}
+      <button type="button" className="scoreInfoBtn" aria-label={title}>
+        i
+      </button>
+      <span className="bankTooltip" role="tooltip">
+        <strong>{title}</strong>
+        <p>{body}</p>
+        {scale.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </span>
+    </span>
   );
 }
 

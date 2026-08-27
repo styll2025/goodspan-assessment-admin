@@ -1463,7 +1463,7 @@ summary {
 
 .bankGrid {
   display: grid;
-  grid-template-columns: 78px minmax(150px, 0.8fr) minmax(220px, 1.4fr) minmax(140px, 0.9fr) minmax(180px, 1fr);
+  grid-template-columns: 78px 64px 88px minmax(140px, 0.75fr) minmax(200px, 1.4fr) minmax(130px, 0.85fr) minmax(160px, 1fr);
   gap: 0 18px;
   align-items: baseline;
 }
@@ -1477,6 +1477,64 @@ summary {
   letter-spacing: 0.13em;
   padding: 9px 34px;
   text-transform: uppercase;
+}
+
+.bankHeadTip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.bankHeadTip .scoreInfoBtn {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.bankTooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: min(340px, 70vw);
+  border: 2px solid #1b1f1a;
+  background: #fbfaf4;
+  padding: 12px 14px;
+  color: #3d423a;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+  white-space: normal;
+  box-shadow: 4px 6px 0 #eae8de;
+}
+
+.bankHeadTip:hover .bankTooltip,
+.bankHeadTip:focus-within .bankTooltip {
+  display: block;
+}
+
+.bankTooltip strong {
+  display: block;
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bankTooltip p {
+  margin: 8px 0 0;
+}
+
+.bankTooltip p:first-of-type {
+  margin-top: 6px;
 }
 
 .bankRow {
@@ -1505,6 +1563,13 @@ summary {
 
 .levelText.gentle {
   color: #8a8f86;
+}
+
+.scoreCol {
+  color: #1b1f1a;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .categoryText {
