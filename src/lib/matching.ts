@@ -448,6 +448,7 @@ export function startScore(
 ): number {
   const effort = item.practice.effort;
   const visibility = item.practice.visibility;
+  if (!Number.isInteger(effort) || !Number.isInteger(visibility)) return Number.NEGATIVE_INFINITY;
   let score = (4 - effort) * 2 + visibility;
 
   const habitDriver = categoryHabitDriver(pillarId, item.category, respondent, settings);
@@ -479,7 +480,8 @@ export function flagStartWithThis(
   const preferAlone = (respondent.barriers ?? []).includes('I prefer to do things on my own');
   const socialNames = SOCIAL_CATEGORIES[pillarId];
   const eligible = planItems.filter((item) => {
-    if (item.practice.visibility < 2) return false;
+    const visibility = item.practice.visibility;
+    if (!Number.isInteger(visibility) || visibility < 2) return false;
     if (preferAlone && socialNames.includes(item.category)) return false;
     return true;
   });

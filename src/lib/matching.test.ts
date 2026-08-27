@@ -3,6 +3,7 @@ import type { Barrier, PlanItem, Practice, Respondent } from '../types';
 import {
   AGE_BAND_ORDER,
   DEFAULT_SETTINGS,
+  PRACTICES,
   SOCIAL_CATEGORIES,
   autoCluster,
   buildDiverseGroups,
@@ -278,11 +279,54 @@ describe('C5 start with this', () => {
 
     generateSampleRespondents().forEach((person) => {
       const plan = buildPlan(person, DEFAULT_SETTINGS);
-      const flagged = plan.items.filter((entry) => entry.startWithThis).length;
-      expect(flagged).toBeGreaterThanOrEqual(0);
-      expect(flagged).toBeLessThanOrEqual(2);
+      const flagged = plan.items.filter((entry) => entry.startWithThis);
+      expect(flagged.length).toBeGreaterThanOrEqual(0);
+      expect(flagged.length).toBeLessThanOrEqual(2);
       expect(plan.items).toHaveLength(5);
+      plan.items.forEach((entry) => {
+        expect([1, 2, 3]).toContain(entry.practice.effort);
+        expect([1, 2, 3]).toContain(entry.practice.visibility);
+      });
+      flagged.forEach((entry) => {
+        expect(entry.practice.visibility).toBeGreaterThanOrEqual(2);
+      });
     });
+  });
+
+  it('imports effort and visibility from the practice library, not placeholders', () => {
+    const library = Object.values(PRACTICES).flatMap((categories) => Object.values(categories).flat());
+    expect(library).toHaveLength(202);
+    library.forEach((practice) => {
+      expect([1, 2, 3]).toContain(practice.effort);
+      expect([1, 2, 3]).toContain(practice.visibility);
+    });
+  });
+
+  it('never flags the imported step-tracking practice even when nothing else in the plan scores well', () => {
+    const tracker = PRACTICES.move['Movement Snacking & Self-Monitoring'].find((practice) =>
+      practice.text.startsWith('Track your steps for 3 days'),
+    );
+    expect(tracker).toMatchObject({ effort: 1, visibility: 1 });
+
+    const person = respondent({
+      barriers: ["I don't have much time", 'I struggle to stay consistent'],
+    });
+    const flagged = flagStartWithThis(
+      [
+        { category: 'Movement Snacking & Self-Monitoring', practice: tracker!, score: 0, reason: 'balance', alternatives: [], startWithThis: false },
+        item('Incidental Movement & Sedentary Behavior', { text: 'also low vis', effort: 1, visibility: 1 }),
+        item('Structured Cardio', { text: 'also low vis 2', effort: 1, visibility: 1 }),
+        item('Strength & Resistance', { text: 'high effort visible', effort: 3, visibility: 2 }),
+        item('Social & Accountability', { text: 'circle', effort: 2, visibility: 2 }),
+      ],
+      'move',
+      person,
+    );
+
+    const trackerItem = flagged.find((entry) => entry.practice.text.startsWith('Track your steps'));
+    expect(trackerItem?.startWithThis).toBe(false);
+    expect(flagged.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
+    expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
   });
 });
 
