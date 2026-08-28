@@ -21,7 +21,7 @@ import {
   suggestCircleFor,
 } from './lib/matching';
 import { generateSampleRespondents } from './lib/sampleData';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, TimePerDay } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, StartWithThisSettings, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
 type Score = 1 | 2 | 3;
@@ -65,6 +65,53 @@ const HABIT_KEYS: HabitKey[] = [
   'calmPractice',
   'socialConnection',
 ];
+
+type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
+type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
+
+const START_WEIGHT_PRESETS: Record<Exclude<StartWeightPresetId, 'custom'>, StartWeights> = {
+  balanced: {
+    effortWeight: DEFAULT_SETTINGS.startWithThis.effortWeight,
+    visibilityWeight: DEFAULT_SETTINGS.startWithThis.visibilityWeight,
+    habitProximityBonus: DEFAULT_SETTINGS.startWithThis.habitProximityBonus,
+    barrierMatchBonus: DEFAULT_SETTINGS.startWithThis.barrierMatchBonus,
+  },
+  quickWins: {
+    effortWeight: 4,
+    visibilityWeight: 3,
+    habitProximityBonus: 1,
+    barrierMatchBonus: 3,
+  },
+  personalization: {
+    effortWeight: 1,
+    visibilityWeight: 1,
+    habitProximityBonus: 8,
+    barrierMatchBonus: 6,
+  },
+};
+
+const START_WEIGHT_PRESET_ORDER: StartWeightPresetId[] = ['balanced', 'quickWins', 'personalization', 'custom'];
+
+const START_WEIGHT_PRESET_LABEL: Record<StartWeightPresetId, string> = {
+  balanced: 'Balanced (default)',
+  quickWins: 'Favor quick wins',
+  personalization: 'Favor personalization to their answers',
+  custom: 'Custom',
+};
+
+function startWeightsMatch(left: StartWeights, right: StartWeights) {
+  return left.effortWeight === right.effortWeight
+    && left.visibilityWeight === right.visibilityWeight
+    && left.habitProximityBonus === right.habitProximityBonus
+    && left.barrierMatchBonus === right.barrierMatchBonus;
+}
+
+function activeStartWeightPreset(start: StartWithThisSettings): StartWeightPresetId {
+  const named = (Object.keys(START_WEIGHT_PRESETS) as Array<Exclude<StartWeightPresetId, 'custom'>>).find((id) =>
+    startWeightsMatch(start, START_WEIGHT_PRESETS[id]),
+  );
+  return named ?? 'custom';
+}
 
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('gs_admin_authed') === 'true');
@@ -352,6 +399,10 @@ export default function App() {
           onSample={loadSamples}
           overrideSummary={overrideSummary(swaps, levelOverrides)}
           onResetOverrides={resetOverrides}
+          respondents={respondents}
+          plans={plans}
+          selectedId={selected?.id ?? ''}
+          onSelectId={setSelectedId}
         />
       )}
     </div>
@@ -1179,6 +1230,10 @@ function SettingsView({
   onSample,
   overrideSummary,
   onResetOverrides,
+  respondents,
+  plans,
+  selectedId,
+  onSelectId,
 }: {
   settings: MatchingSettings;
   onSettings: (settings: MatchingSettings) => void;
@@ -1191,6 +1246,10 @@ function SettingsView({
   onSample: () => void;
   overrideSummary: string;
   onResetOverrides: () => void;
+  respondents: Respondent[];
+  plans: Map<string, Plan>;
+  selectedId: string;
+  onSelectId: (id: string) => void;
 }) {
   const [kwSearch, setKwSearch] = useState('');
   const sheetError = status.startsWith('Sheet error') ? status : '';
@@ -1378,91 +1437,15 @@ function SettingsView({
             <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
           </div>
 
-          <SettingSlider
-            label="Flags per plan"
-            value={settings.startWithThis.flagsPerPlan}
-            display={String(settings.startWithThis.flagsPerPlan)}
-            min={0}
-            max={3}
-            step={1}
-            left="None"
-            right="Up to 3"
-            desc="Maximum number of practices flagged Start with this. A plan can still receive fewer — including none — if too few practices clear the gates."
-            onChange={(value) => update((next) => { next.startWithThis.flagsPerPlan = value; })}
+          <StartWithThisControls
+            settings={settings}
+            update={update}
+            respondents={respondents}
+            plans={plans}
+            selectedId={selectedId}
+            onSelectId={onSelectId}
+            onSample={onSample}
           />
-          <SettingSlider
-            label="Effort weight"
-            value={settings.startWithThis.effortWeight}
-            display={`×${settings.startWithThis.effortWeight}`}
-            min={0}
-            max={4}
-            step={1}
-            left="Ignore effort"
-            right="Prefer low effort"
-            desc="Multiplier on (4 − effort) in the score formula. Higher values push easier-to-start practices up the ranking."
-            onChange={(value) => update((next) => { next.startWithThis.effortWeight = value; })}
-          />
-          <SettingSlider
-            label="Visibility weight"
-            value={settings.startWithThis.visibilityWeight}
-            display={`×${settings.startWithThis.visibilityWeight}`}
-            min={0}
-            max={4}
-            step={1}
-            left="Ignore visibility"
-            right="Prefer felt benefit"
-            desc="Multiplier on visibility in the score formula. Higher values push practices with a faster felt wellbeing benefit up the ranking."
-            onChange={(value) => update((next) => { next.startWithThis.visibilityWeight = value; })}
-          />
-          <SettingSlider
-            label="Habit-proximity bonus"
-            value={settings.startWithThis.habitProximityBonus}
-            display={`×${settings.startWithThis.habitProximityBonus}`}
-            min={0}
-            max={8}
-            step={1}
-            left="No bonus"
-            right="Strong bonus"
-            desc="How much already doing a little of this boosts a practice. This is the opposite of weak-habit priority, which chose the five practices."
-            onChange={(value) => update((next) => { next.startWithThis.habitProximityBonus = value; })}
-          />
-          <SettingSlider
-            label="Barrier-match bonus"
-            value={settings.startWithThis.barrierMatchBonus}
-            display={`+${settings.startWithThis.barrierMatchBonus}`}
-            min={0}
-            max={8}
-            step={1}
-            left="No bonus"
-            right="Strong bonus"
-            desc="Points added when a practice matches one of the barrier-based rules, such as low time favoring effort 1, or lack of accountability favoring the Circle practice."
-            onChange={(value) => update((next) => { next.startWithThis.barrierMatchBonus = value; })}
-          />
-
-          <div className="subBlock">
-            <strong>Minimum visibility to be eligible</strong>
-            <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. The Circle-practice exclusion for “I prefer to do things on my own” stays on, and a plan is never forced to reach the flag count.</p>
-            <div className="mappingRow">
-              <span>Eligible from</span>
-              <div className="seg">
-                {([1, 2] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={settings.startWithThis.minVisibility === value ? 'selected' : ''}
-                    onClick={() => update((next) => { next.startWithThis.minVisibility = value; })}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {settings.startWithThis.minVisibility === 1 && (
-              <div className="startGateWarning">
-                Setting this to 1 re-enables low-visibility practices (for example step-tracking) being flagged, which contradicts the original design intent.
-              </div>
-            )}
-          </div>
         </div>
       </section>
 
@@ -1723,6 +1706,211 @@ const TRAIT_ROWS: Array<{ key: keyof MatchingSettings['traitWeights']; label: st
   { key: 'work', label: 'Work situation', desc: 'Counts once for each member with the same work situation.' },
   { key: 'home', label: 'Home life', desc: 'Counts once for each member with the same home-life answer.' },
 ];
+
+function StartWithThisControls({
+  settings,
+  update,
+  respondents,
+  plans,
+  selectedId,
+  onSelectId,
+  onSample,
+}: {
+  settings: MatchingSettings;
+  update: (mutate: (next: MatchingSettings) => void) => void;
+  respondents: Respondent[];
+  plans: Map<string, Plan>;
+  selectedId: string;
+  onSelectId: (id: string) => void;
+  onSample: () => void;
+}) {
+  const preset = activeStartWeightPreset(settings.startWithThis);
+  const preview = respondents.find((respondent) => respondent.id === selectedId) ?? respondents[0] ?? null;
+  const previewPlan = preview ? plans.get(preview.id) ?? null : null;
+
+  return (
+    <>
+      <div className="subBlock startPresetsBlock">
+        <strong>Preset</strong>
+        <p>Sets the four scoring weights at once. Flags per plan and minimum visibility stay as you set them.</p>
+        <div className="startPresets" role="radiogroup" aria-label="Start with this weighting preset">
+          {START_WEIGHT_PRESET_ORDER.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={preset === id}
+              className={preset === id ? 'selected' : ''}
+              disabled={id === 'custom' && preset !== 'custom'}
+              onClick={() => {
+                if (id === 'custom') return;
+                update((next) => {
+                  next.startWithThis = { ...next.startWithThis, ...START_WEIGHT_PRESETS[id] };
+                });
+              }}
+            >
+              {START_WEIGHT_PRESET_LABEL[id]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <SettingSlider
+        label="Flags per plan"
+        value={settings.startWithThis.flagsPerPlan}
+        display={String(settings.startWithThis.flagsPerPlan)}
+        min={0}
+        max={3}
+        step={1}
+        left="None"
+        right="Up to 3"
+        desc="Maximum number of practices flagged Start with this. A plan can still receive fewer — including none — if too few practices clear the gates."
+        onChange={(value) => update((next) => { next.startWithThis.flagsPerPlan = value; })}
+      />
+
+      <div className="subBlock">
+        <strong>Minimum visibility to be eligible</strong>
+        <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. The Circle-practice exclusion for “I prefer to do things on my own” stays on, and a plan is never forced to reach the flag count.</p>
+        <div className="mappingRow">
+          <span>Eligible from</span>
+          <div className="seg">
+            {([1, 2] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={settings.startWithThis.minVisibility === value ? 'selected' : ''}
+                onClick={() => update((next) => { next.startWithThis.minVisibility = value; })}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+        {settings.startWithThis.minVisibility === 1 && (
+          <div className="startGateWarning">
+            Setting this to 1 re-enables low-visibility practices (for example step-tracking) being flagged, which contradicts the original design intent.
+          </div>
+        )}
+      </div>
+
+      <details className="startAdvanced">
+        <summary>Advanced tuning</summary>
+        <SettingSlider
+          label="Effort weight"
+          value={settings.startWithThis.effortWeight}
+          display={`×${settings.startWithThis.effortWeight}`}
+          min={0}
+          max={4}
+          step={1}
+          left="Ignore effort"
+          right="Prefer low effort"
+          desc="Multiplier on (4 − effort) in the score formula. Higher values push easier-to-start practices up the ranking."
+          onChange={(value) => update((next) => { next.startWithThis.effortWeight = value; })}
+        />
+        <SettingSlider
+          label="Visibility weight"
+          value={settings.startWithThis.visibilityWeight}
+          display={`×${settings.startWithThis.visibilityWeight}`}
+          min={0}
+          max={4}
+          step={1}
+          left="Ignore visibility"
+          right="Prefer felt benefit"
+          desc="Multiplier on visibility in the score formula. Higher values push practices with a faster felt wellbeing benefit up the ranking."
+          onChange={(value) => update((next) => { next.startWithThis.visibilityWeight = value; })}
+        />
+        <SettingSlider
+          label="Habit-proximity bonus"
+          value={settings.startWithThis.habitProximityBonus}
+          display={`×${settings.startWithThis.habitProximityBonus}`}
+          min={0}
+          max={8}
+          step={1}
+          left="No bonus"
+          right="Strong bonus"
+          desc="How much already doing a little of this boosts a practice. This is the opposite of weak-habit priority, which chose the five practices."
+          onChange={(value) => update((next) => { next.startWithThis.habitProximityBonus = value; })}
+        />
+        <SettingSlider
+          label="Barrier-match bonus"
+          value={settings.startWithThis.barrierMatchBonus}
+          display={`+${settings.startWithThis.barrierMatchBonus}`}
+          min={0}
+          max={8}
+          step={1}
+          left="No bonus"
+          right="Strong bonus"
+          desc="Points added when a practice matches one of the barrier-based rules, such as low time favoring effort 1, or lack of accountability favoring the Circle practice."
+          onChange={(value) => update((next) => { next.startWithThis.barrierMatchBonus = value; })}
+        />
+      </details>
+
+      <StartWithThisPreview
+        respondents={respondents}
+        preview={preview}
+        plan={previewPlan}
+        onSelectId={onSelectId}
+        onSample={onSample}
+      />
+    </>
+  );
+}
+
+function StartWithThisPreview({
+  respondents,
+  preview,
+  plan,
+  onSelectId,
+  onSample,
+}: {
+  respondents: Respondent[];
+  preview: Respondent | null;
+  plan: Plan | null;
+  onSelectId: (id: string) => void;
+  onSample: () => void;
+}) {
+  return (
+    <div className="startPreview">
+      <strong>Live preview</strong>
+      <p>The five practices stay the same. Watch which ones are flagged Start with this as you change the settings above.</p>
+      {respondents.length === 0 || !preview || !plan ? (
+        <div className="startPreviewEmpty">
+          <p>Load members to see a real plan. Sample data is enough to try the flags.</p>
+          <button className="sampleBtn" type="button" onClick={onSample}>Load sample data</button>
+        </div>
+      ) : (
+        <>
+          <label className="fieldLabel" htmlFor="start-preview-member">Member</label>
+          <select
+            id="start-preview-member"
+            className="startPreviewSelect"
+            value={preview.id}
+            onChange={(event) => onSelectId(event.target.value)}
+          >
+            {respondents.map((respondent) => (
+              <option key={respondent.id} value={respondent.id}>
+                {respondent.preferredName || 'Unnamed'}
+                {respondent.location ? ` · ${respondent.location}` : ''}
+              </option>
+            ))}
+          </select>
+          <ol className="startPreviewList">
+            {plan.items.map((item, index) => (
+              <li key={`${item.category}-${index}`} className={item.startWithThis ? 'flagged' : undefined}>
+                <span className="slot">{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <span className="eyebrow">{item.category}</span>
+                  <strong>{item.practice.text}</strong>
+                </div>
+                {item.startWithThis && <span className="reasonTag start">Start with this</span>}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </div>
+  );
+}
 
 function SettingSlider({
   label,

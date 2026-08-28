@@ -1880,6 +1880,172 @@ summary {
   padding: 12px 14px;
 }
 
+.startPresets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.startPresets button {
+  border: 1px solid #dfddd3;
+  background: #fff;
+  color: #1b1f1a;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: none;
+}
+
+.startPresets button:hover {
+  background: #f5f4ec;
+  color: #1b1f1a;
+}
+
+.startPresets button.selected,
+.startPresets button.selected:hover {
+  border-color: #1b1f1a;
+  background: #aece36;
+  color: #1b1f1a;
+}
+
+.startPresets button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.startPresets button:disabled:not(.selected) {
+  color: #8a8f86;
+}
+
+.startAdvanced {
+  border: none;
+  background: none;
+  margin: 0;
+  padding: 16px 0 8px;
+}
+
+.startAdvanced summary {
+  color: #1b1f1a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  list-style: none;
+}
+
+.startAdvanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.startAdvanced summary::before {
+  content: '▸ ';
+}
+
+.startAdvanced[open] summary::before {
+  content: '▾ ';
+}
+
+.startAdvanced .sliderBlock:first-of-type {
+  border-top: none;
+  padding-top: 12px;
+}
+
+.startAdvanced .sliderBlock:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.startPreview {
+  border: 2px solid #1b1f1a;
+  background: #fff;
+  margin-top: 10px;
+  padding: 16px 16px 10px;
+}
+
+.startPreview > strong {
+  display: block;
+}
+
+.startPreview > p {
+  margin-top: 6px;
+}
+
+.startPreview .fieldLabel {
+  margin-top: 14px;
+}
+
+.startPreviewEmpty {
+  margin-top: 14px;
+}
+
+.startPreviewEmpty .sampleBtn {
+  margin-top: 12px;
+}
+
+.startPreviewSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 2px solid #1b1f1a;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231b1f1a' d='M1.1 1.2 6 6.1l4.9-4.9 1.1 1.1L6 8.3 0 2.3z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: #1b1f1a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 34px 10px 12px;
+}
+
+.startPreviewSelect:hover {
+  background-color: #fbfaf4;
+}
+
+.startPreviewList {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.startPreviewList li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: start;
+  border-top: 1px solid #eae8de;
+  padding: 12px 0;
+}
+
+.startPreviewList li:last-child {
+  padding-bottom: 4px;
+}
+
+.startPreviewList .slot {
+  font-size: 15px;
+}
+
+.startPreviewList .eyebrow {
+  display: block;
+  margin: 0 0 4px;
+}
+
+.startPreviewList strong {
+  display: block;
+  color: #1b1f1a;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.startPreviewList .reasonTag.start {
+  margin: 2px 0 0;
+  justify-self: end;
+}
+
 .statusBox {
   display: flex;
   align-items: center;
