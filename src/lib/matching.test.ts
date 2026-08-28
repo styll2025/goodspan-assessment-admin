@@ -49,6 +49,12 @@ function settingsWithGoal(statedGoalWeight: number) {
   return settings;
 }
 
+function settingsWithStart(overrides: Partial<(typeof DEFAULT_SETTINGS)['startWithThis']>) {
+  const settings = cloneSettings();
+  settings.startWithThis = { ...settings.startWithThis, ...overrides };
+  return settings;
+}
+
 function practice(overrides: Partial<Practice> & Pick<Practice, 'text'>): Practice {
   return {
     level: 'gentle',
@@ -327,6 +333,60 @@ describe('C5 start with this', () => {
     expect(trackerItem?.startWithThis).toBe(false);
     expect(flagged.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
     expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
+  });
+
+  it('respects flagsPerPlan, including zero, without forcing a count', () => {
+    const items = [
+      item('Sleep Environment', { text: 'a', effort: 1, visibility: 2 }),
+      item('Sleep Pressure', { text: 'b', effort: 1, visibility: 3 }),
+      item('Wind Down', { text: 'c', effort: 2, visibility: 2 }),
+    ];
+    const person = respondent();
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 0 })).filter((entry) => entry.startWithThis)).toHaveLength(0);
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 1 })).filter((entry) => entry.startWithThis)).toHaveLength(1);
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 3 })).filter((entry) => entry.startWithThis)).toHaveLength(3);
+  });
+
+  it('lets a visibility=1 practice be flagged only when the minimum visibility setting is 1', () => {
+    const person = respondent({ barriers: ["I don't have much time"] });
+    const items = [
+      item('Sleep Environment', { text: 'track steps baseline', effort: 1, visibility: 1 }),
+      item('Sleep Pressure', { text: 'higher effort visible', effort: 3, visibility: 2 }),
+    ];
+    const blocked = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 2, flagsPerPlan: 1 }));
+    const allowed = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 1, flagsPerPlan: 1 }));
+    expect(blocked.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(false);
+    expect(blocked.find((entry) => entry.practice.visibility === 2)?.startWithThis).toBe(true);
+    expect(allowed.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(true);
+  });
+
+  it('uses effort and visibility weights from settings in the score formula', () => {
+    const person = respondent();
+    const items = [
+      item('Sleep Environment', { text: 'easy quieter benefit', effort: 1, visibility: 2 }),
+      item('Sleep Pressure', { text: 'harder felt benefit', effort: 3, visibility: 3 }),
+    ];
+    const effortLed = flagStartWithThis(
+      items,
+      'sleep',
+      person,
+      settingsWithStart({ effortWeight: 4, visibilityWeight: 0, flagsPerPlan: 1, habitProximityBonus: 0, barrierMatchBonus: 0 }),
+    );
+    const visibilityLed = flagStartWithThis(
+      items,
+      'sleep',
+      person,
+      settingsWithStart({ effortWeight: 0, visibilityWeight: 4, flagsPerPlan: 1, habitProximityBonus: 0, barrierMatchBonus: 0 }),
+    );
+    expect(effortLed.find((entry) => entry.practice.effort === 1)?.startWithThis).toBe(true);
+    expect(visibilityLed.find((entry) => entry.practice.visibility === 3)?.startWithThis).toBe(true);
+  });
+
+  it('passes start-with-this settings through buildPlan', () => {
+    const person = respondent({ barriers: ["I don't have much time"] });
+    const none = buildPlan(person, settingsWithStart({ flagsPerPlan: 0 }));
+    expect(none.items.filter((entry) => entry.startWithThis)).toHaveLength(0);
+    expect(none.items).toHaveLength(5);
   });
 });
 

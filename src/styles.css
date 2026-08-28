@@ -1845,6 +1845,41 @@ summary {
   padding: 12px 14px;
 }
 
+.startCopy {
+  padding: 0 0 8px;
+}
+
+.startCopy p:first-child {
+  margin-top: 0;
+}
+
+.startCopy ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.startCopy li {
+  color: #5a5f56;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.startCopy li strong {
+  color: #1b1f1a;
+}
+
+.startGateWarning {
+  margin-top: 12px;
+  border-left: 4px solid #b4482e;
+  background: #fbf0ed;
+  color: #b4482e;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 12px 14px;
+}
+
 .statusBox {
   display: flex;
   align-items: center;

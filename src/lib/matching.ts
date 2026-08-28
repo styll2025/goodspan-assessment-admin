@@ -132,6 +132,14 @@ export const DEFAULT_SETTINGS: MatchingSettings = {
   keywordWeight: 5,
   habitPriority: 50,
   circleGuarantee: true,
+  startWithThis: {
+    flagsPerPlan: 2,
+    effortWeight: 2,
+    visibilityWeight: 1,
+    habitProximityBonus: 4,
+    barrierMatchBonus: 3,
+    minVisibility: 2,
+  },
   targetCircleSize: 6,
   minCircleSize: 5,
   maxCircleSize: 7,
@@ -295,7 +303,7 @@ export function buildPlan(
     levelId,
     overridden: rec.overridden,
     scores: rec.scores,
-    items: flagStartWithThis(items, rec.pillarId, respondent),
+    items: flagStartWithThis(items, rec.pillarId, respondent, settings),
   };
 }
 
@@ -440,6 +448,13 @@ function toPlanItem(
   };
 }
 
+function startWithThisSettings(settings: MatchingSettings) {
+  return {
+    ...DEFAULT_SETTINGS.startWithThis,
+    ...settings.startWithThis,
+  };
+}
+
 export function startScore(
   item: PlanItem,
   pillarId: Pillar,
@@ -449,23 +464,25 @@ export function startScore(
   const effort = item.practice.effort;
   const visibility = item.practice.visibility;
   if (!Number.isInteger(effort) || !Number.isInteger(visibility)) return Number.NEGATIVE_INFINITY;
-  let score = (4 - effort) * 2 + visibility;
+  const start = startWithThisSettings(settings);
+  let score = (4 - effort) * start.effortWeight + visibility * start.visibilityWeight;
 
   const habitDriver = categoryHabitDriver(pillarId, item.category, respondent, settings);
   if (habitDriver && habitDriver.weakness < 0.99) {
-    score += (1 - habitDriver.weakness) * 4;
+    score += (1 - habitDriver.weakness) * start.habitProximityBonus;
   }
 
+  const bonus = start.barrierMatchBonus;
   const barriers = respondent.barriers ?? [];
-  if (barriers.includes("I don't have much time") && effort === 1) score += 3;
-  if (barriers.includes('My schedule changes a lot') && effort === 1) score += 3;
-  if (barriers.includes('I struggle to stay consistent') && effort === 1) score += 3;
-  if (barriers.includes("I don't know where to start") && effort === 1 && visibility >= 2) score += 3;
+  if (barriers.includes("I don't have much time") && effort === 1) score += bonus;
+  if (barriers.includes('My schedule changes a lot') && effort === 1) score += bonus;
+  if (barriers.includes('I struggle to stay consistent') && effort === 1) score += bonus;
+  if (barriers.includes("I don't know where to start") && effort === 1 && visibility >= 2) score += bonus;
   if (
     barriers.includes('I lose motivation without support or accountability') &&
     SOCIAL_CATEGORIES[pillarId].includes(item.category)
   ) {
-    score += 3;
+    score += bonus;
   }
 
   return score;
@@ -477,11 +494,12 @@ export function flagStartWithThis(
   respondent: Respondent,
   settings: MatchingSettings = DEFAULT_SETTINGS,
 ): PlanItem[] {
+  const start = startWithThisSettings(settings);
   const preferAlone = (respondent.barriers ?? []).includes('I prefer to do things on my own');
   const socialNames = SOCIAL_CATEGORIES[pillarId];
   const eligible = planItems.filter((item) => {
     const visibility = item.practice.visibility;
-    if (!Number.isInteger(visibility) || visibility < 2) return false;
+    if (!Number.isInteger(visibility) || visibility < start.minVisibility) return false;
     if (preferAlone && socialNames.includes(item.category)) return false;
     return true;
   });
@@ -490,7 +508,7 @@ export function flagStartWithThis(
     if (delta !== 0) return delta;
     return planItems.indexOf(a) - planItems.indexOf(b);
   });
-  const flagged = new Set(ranked.slice(0, Math.min(2, ranked.length)));
+  const flagged = new Set(ranked.slice(0, Math.min(start.flagsPerPlan, ranked.length)));
   return planItems.map((item) => ({ ...item, startWithThis: flagged.has(item) }));
 }
 

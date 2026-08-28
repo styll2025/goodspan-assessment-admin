@@ -107,12 +107,22 @@ export type Circle = {
   mixed: boolean;
 };
 
+export type StartWithThisSettings = {
+  flagsPerPlan: number;
+  effortWeight: number;
+  visibilityWeight: number;
+  habitProximityBonus: number;
+  barrierMatchBonus: number;
+  minVisibility: 1 | 2;
+};
+
 export type MatchingSettings = {
   statedGoalWeight: number;
   challengeBoost: number;
   keywordWeight: number;
   habitPriority: number;
   circleGuarantee: boolean;
+  startWithThis: StartWithThisSettings;
   targetCircleSize: number;
   minCircleSize: number;
   maxCircleSize: number;

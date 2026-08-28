@@ -1354,6 +1354,120 @@ function SettingsView({
 
       <section className="settingSection">
         <div>
+          <h2>How "Start with this" works</h2>
+          <p>These controls only change which of the five already-chosen practices are flagged as a starting point. They do not change which five practices are in the plan.</p>
+        </div>
+        <div className="settingBody">
+          <div className="startCopy">
+            <p>Every plan includes 5 practices, chosen based on what this person needs most. Separately, 1–2 of those 5 are flagged as good practices to begin with — not the most important ones, but the ones most likely to actually work quickly for this specific person.</p>
+            <p>A practice is flagged when it scores well on:</p>
+            <ul>
+              <li>
+                <strong>Low effort</strong> — can they start it right now, with little preparation?
+              </li>
+              <li>
+                <strong>Visible benefit</strong> — will they actually feel or notice something changed, not just complete a task? (Logging a number isn't itself a felt benefit — that distinction is deliberate.)
+              </li>
+              <li>
+                <strong>Already close</strong> — are they already doing a little of this, so the gap to a first success is short?
+              </li>
+              <li>
+                <strong>Matches their stated barrier</strong> — e.g. low-time answers favor low-effort practices; "I lose motivation without support" favors the Circle practice; "I prefer to do things on my own" means the Circle practice is never flagged (it still stays in their 5 practices either way — this only affects which ones are recommended as a starting point).
+              </li>
+            </ul>
+            <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
+          </div>
+
+          <SettingSlider
+            label="Flags per plan"
+            value={settings.startWithThis.flagsPerPlan}
+            display={String(settings.startWithThis.flagsPerPlan)}
+            min={0}
+            max={3}
+            step={1}
+            left="None"
+            right="Up to 3"
+            desc="Maximum number of practices flagged Start with this. A plan can still receive fewer — including none — if too few practices clear the gates."
+            onChange={(value) => update((next) => { next.startWithThis.flagsPerPlan = value; })}
+          />
+          <SettingSlider
+            label="Effort weight"
+            value={settings.startWithThis.effortWeight}
+            display={`×${settings.startWithThis.effortWeight}`}
+            min={0}
+            max={4}
+            step={1}
+            left="Ignore effort"
+            right="Prefer low effort"
+            desc="Multiplier on (4 − effort) in the score formula. Higher values push easier-to-start practices up the ranking."
+            onChange={(value) => update((next) => { next.startWithThis.effortWeight = value; })}
+          />
+          <SettingSlider
+            label="Visibility weight"
+            value={settings.startWithThis.visibilityWeight}
+            display={`×${settings.startWithThis.visibilityWeight}`}
+            min={0}
+            max={4}
+            step={1}
+            left="Ignore visibility"
+            right="Prefer felt benefit"
+            desc="Multiplier on visibility in the score formula. Higher values push practices with a faster felt wellbeing benefit up the ranking."
+            onChange={(value) => update((next) => { next.startWithThis.visibilityWeight = value; })}
+          />
+          <SettingSlider
+            label="Habit-proximity bonus"
+            value={settings.startWithThis.habitProximityBonus}
+            display={`×${settings.startWithThis.habitProximityBonus}`}
+            min={0}
+            max={8}
+            step={1}
+            left="No bonus"
+            right="Strong bonus"
+            desc="How much already doing a little of this boosts a practice. This is the opposite of weak-habit priority, which chose the five practices."
+            onChange={(value) => update((next) => { next.startWithThis.habitProximityBonus = value; })}
+          />
+          <SettingSlider
+            label="Barrier-match bonus"
+            value={settings.startWithThis.barrierMatchBonus}
+            display={`+${settings.startWithThis.barrierMatchBonus}`}
+            min={0}
+            max={8}
+            step={1}
+            left="No bonus"
+            right="Strong bonus"
+            desc="Points added when a practice matches one of the barrier-based rules, such as low time favoring effort 1, or lack of accountability favoring the Circle practice."
+            onChange={(value) => update((next) => { next.startWithThis.barrierMatchBonus = value; })}
+          />
+
+          <div className="subBlock">
+            <strong>Minimum visibility to be eligible</strong>
+            <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. The Circle-practice exclusion for “I prefer to do things on my own” stays on, and a plan is never forced to reach the flag count.</p>
+            <div className="mappingRow">
+              <span>Eligible from</span>
+              <div className="seg">
+                {([1, 2] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={settings.startWithThis.minVisibility === value ? 'selected' : ''}
+                    onClick={() => update((next) => { next.startWithThis.minVisibility = value; })}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {settings.startWithThis.minVisibility === 1 && (
+              <div className="startGateWarning">
+                Setting this to 1 re-enables low-visibility practices (for example step-tracking) being flagged, which contradicts the original design intent.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="settingSection">
+        <div>
           <h2>Circle formation</h2>
           <p>People are first grouped by Span and city. A person can only be placed in a Circle with others from the same Span and city.</p>
           <p>Within that group, we try to make each Circle as mixed as possible. Each person is placed in the Circle where they are least similar to the people already in it.</p>
@@ -1609,6 +1723,52 @@ const TRAIT_ROWS: Array<{ key: keyof MatchingSettings['traitWeights']; label: st
   { key: 'work', label: 'Work situation', desc: 'Counts once for each member with the same work situation.' },
   { key: 'home', label: 'Home life', desc: 'Counts once for each member with the same home-life answer.' },
 ];
+
+function SettingSlider({
+  label,
+  value,
+  display,
+  min,
+  max,
+  step,
+  left,
+  right,
+  desc,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  display: string;
+  min: number;
+  max: number;
+  step: number;
+  left: string;
+  right: string;
+  desc: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="sliderBlock">
+      <div className="sliderHead">
+        <strong>{label}</strong>
+        <span>{display}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <div className="rangeLabels">
+        <span>{left}</span>
+        <span>{right}</span>
+      </div>
+      <p>{desc}</p>
+    </div>
+  );
+}
 
 function WeightRow({
   label,
