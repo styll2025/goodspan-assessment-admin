@@ -439,9 +439,9 @@ describe('E circle diversity', () => {
     );
 
     const groups = buildDiverseGroups(people, DEFAULT_SETTINGS);
-    expect(groups).toHaveLength(3);
+    expect(groups).toHaveLength(2);
     groups.forEach((group) => {
-      expect(group.members).toHaveLength(6);
+      expect(group.members).toHaveLength(9);
       expect(new Set(group.members.map((member) => member.ageBand)).size).toBe(6);
       expect(new Set(group.members.map((member) => member.gender)).size).toBe(3);
       expect(group.needsMore).toBe(false);
@@ -462,7 +462,21 @@ describe('E circle diversity', () => {
     const groups = buildDiverseGroups(people, DEFAULT_SETTINGS);
     expect(groups).toHaveLength(1);
     expect(groups[0].members).toHaveLength(8);
-    expect(groups[0].mixed).toBe(true);
+    expect(groups[0].mixed).toBe(false);
+  });
+
+  it('only splits a city-and-Span pool once it is larger than nine', () => {
+    const people = Array.from({ length: 10 }, (_, index) =>
+      respondent({
+        id: `over-${index}`,
+        preferredName: `Over ${index}`,
+        location: 'Lisbon, Portugal',
+        focusArea: 'mind',
+      }),
+    );
+    const groups = buildDiverseGroups(people, DEFAULT_SETTINGS);
+    expect(groups).toHaveLength(2);
+    expect(groups.reduce((total, group) => total + group.members.length, 0)).toBe(10);
   });
 
   it('clusters Cascais and Caparica with Lisbon, then groups by Span', () => {

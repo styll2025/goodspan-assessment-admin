@@ -143,7 +143,7 @@ export const DEFAULT_SETTINGS: MatchingSettings = {
   },
   targetCircleSize: 6,
   minCircleSize: 5,
-  maxCircleSize: 7,
+  maxCircleSize: 9,
   timeToLevel: { ...TIME_TO_LEVEL },
   traitWeights: {
     ageBand: 1,

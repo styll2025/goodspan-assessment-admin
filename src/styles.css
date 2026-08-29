@@ -1514,8 +1514,8 @@ summary {
 
 .filterCluster {
   display: grid;
-  flex: 1 1 560px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  flex: 1 1 720px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1630,7 +1630,7 @@ summary {
 
 .bankGrid {
   display: grid;
-  grid-template-columns: 78px 64px 88px minmax(140px, 0.75fr) minmax(200px, 1.4fr) minmax(130px, 0.85fr) minmax(160px, 1fr);
+  grid-template-columns: 72px minmax(140px, 0.8fr) 78px 64px 88px minmax(200px, 1.4fr) minmax(130px, 0.85fr) minmax(160px, 1fr);
   gap: 0 18px;
   align-items: baseline;
 }

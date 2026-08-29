@@ -135,6 +135,7 @@ export default function App() {
   const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
   const [practiceEffort, setPracticeEffort] = useState<Score | 'all'>('all');
   const [practiceVisibility, setPracticeVisibility] = useState<Score | 'all'>('all');
+  const [practiceCategory, setPracticeCategory] = useState('all');
   const [practiceQuery, setPracticeQuery] = useState('');
   const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
   const [pillarOverrides, setPillarOverrides] = useState<Record<string, Pillar>>({});
@@ -438,11 +439,17 @@ export default function App() {
       {tab === 'library' && (
         <PracticeBank
           pillar={practicePillar}
+          category={practiceCategory}
           level={practiceLevel}
           effort={practiceEffort}
           visibility={practiceVisibility}
           query={practiceQuery}
-          onPillar={setPracticePillar}
+          onPillar={(next) => {
+            setPracticePillar(next);
+            const allowed = bankCategories(next);
+            setPracticeCategory((current) => (current !== 'all' && !allowed.includes(current) ? 'all' : current));
+          }}
+          onCategory={setPracticeCategory}
           onLevel={setPracticeLevel}
           onEffort={setPracticeEffort}
           onVisibility={setPracticeVisibility}
@@ -1210,7 +1217,7 @@ function CirclesView({
                   <span>Download Circle Overview</span>
                   <span>→</span>
                 </button>
-                <p className="circleOverviewHint">For the Span Lead — member summaries and shared practices.</p>
+                <p className="circleOverviewHint">Member summaries and shared practices.</p>
               </article>
             );
           })}
@@ -1257,7 +1264,6 @@ function CircleOverview({
           </div>
           <div className="planHeroRule" />
           <h1>Circle Overview</h1>
-          <p className="hello">For the Span Lead</p>
           <p>A briefing on this Circle so you can see who is in the group, what they are working with, and where their practices overlap.</p>
           <div className="planHeroMeta">
             <Meta label="Circle" value={`${index + 1} · ${city}`} />
@@ -1467,37 +1473,52 @@ function sharedCirclePractices(members: Respondent[], plans: Map<string, Plan>) 
   return { identical, similar };
 }
 
+function bankCategories(pillar: Pillar | 'all'): string[] {
+  const pillars = pillar === 'all' ? PILLARS : [pillar];
+  const names = new Set<string>();
+  pillars.forEach((pillarId) => {
+    Object.keys(PRACTICES[pillarId]).forEach((category) => names.add(category));
+  });
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
 function PracticeBank({
   pillar,
+  category,
   level,
   effort,
   visibility,
   query,
   onPillar,
+  onCategory,
   onLevel,
   onEffort,
   onVisibility,
   onQuery,
 }: {
   pillar: Pillar | 'all';
+  category: string;
   level: Level | 'all';
   effort: Score | 'all';
   visibility: Score | 'all';
   query: string;
   onPillar: (pillar: Pillar | 'all') => void;
+  onCategory: (category: string) => void;
   onLevel: (level: Level | 'all') => void;
   onEffort: (effort: Score | 'all') => void;
   onVisibility: (visibility: Score | 'all') => void;
   onQuery: (query: string) => void;
 }) {
+  const categoryOptions = bankCategories(pillar);
   const rows = PILLARS.flatMap((pillarId) =>
-    Object.entries(PRACTICES[pillarId]).flatMap(([category, practices]) =>
-      practices.map((practice) => ({ pillarId, category, practice })),
+    Object.entries(PRACTICES[pillarId]).flatMap(([categoryName, practices]) =>
+      practices.map((practice) => ({ pillarId, category: categoryName, practice })),
     ),
   ).filter((row) => {
     const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence}`.toLowerCase();
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
+      (category === 'all' || row.category === category) &&
       (level === 'all' || row.practice.level === level) &&
       (effort === 'all' || row.practice.effort === effort) &&
       (visibility === 'all' || row.practice.visibility === visibility) &&
@@ -1528,6 +1549,16 @@ function PracticeBank({
               ...PILLARS.map((item) => ({ value: item, label: PILLAR_LABEL[item] })),
             ]}
             onChange={(value) => onPillar(value === 'all' ? 'all' : (value as Pillar))}
+          />
+          <BankFilter
+            id="library-category"
+            label="Category"
+            value={category}
+            options={[
+              { value: 'all', label: pillar === 'all' ? 'All categories' : `All ${PILLAR_LABEL[pillar]} categories` },
+              ...categoryOptions.map((item) => ({ value: item, label: item })),
+            ]}
+            onChange={onCategory}
           />
           <BankFilter
             id="library-level"
@@ -1577,10 +1608,11 @@ function PracticeBank({
               <span>{group.rows.length} {group.rows.length === 1 ? 'practice' : 'practices'}</span>
             </div>
             <div className="bankGrid bankHead">
+              <span>Pillar</span>
+              <span>Category</span>
               <span>Level</span>
               <BankScoreTip label="Effort" {...EFFORT_TIP} />
               <BankScoreTip label="Visibility" {...VISIBILITY_TIP} />
-              <span>Category</span>
               <span>Practice</span>
               <span>Keywords matched</span>
               <span>Evidence</span>
@@ -1589,10 +1621,11 @@ function PracticeBank({
               const terms = matchedChallengeTerms(row.practice, row.category, allChallenges);
               return (
                 <article key={`${row.pillarId}-${row.category}-${row.practice.text}`} className="bankGrid bankRow">
+                  <span className="categoryText">{PILLAR_LABEL[row.pillarId]}</span>
+                  <span className="categoryText">{row.category}</span>
                   <span className={`levelText ${row.practice.level}`}>{row.practice.level}</span>
                   <span className="scoreCol">{row.practice.effort}</span>
                   <span className="scoreCol">{row.practice.visibility}</span>
-                  <span className="categoryText">{row.category}</span>
                   <strong>{row.practice.text}</strong>
                   <span className="keywordCell">
                     {terms.length
@@ -1966,7 +1999,7 @@ function SettingsView({
           ))}
           <div className="groupSizeHead">
             <div>Group size, in people</div>
-            <p>Pools are divided into groups near the target, then flagged if they fall outside the minimum or maximum.</p>
+            <p>A city-and-Span group stays together until it is larger than the maximum. Groups are then flagged if they fall outside the minimum or maximum.</p>
           </div>
           <WeightRow
             label="Target size"
