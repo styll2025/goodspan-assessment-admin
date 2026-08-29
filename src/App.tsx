@@ -11,11 +11,11 @@ import {
   PILLAR_TINT,
   PILLARS,
   PRACTICES,
-  SOCIAL_CATEGORIES,
   TIME_TO_LEVEL,
   autoCluster,
   buildPlan,
   cloneSettings,
+  computeRecommendation,
   matchedChallengeTerms,
   normalizeRespondent,
   suggestCircleFor,
@@ -65,6 +65,7 @@ const HABIT_KEYS: HabitKey[] = [
   'calmPractice',
   'socialConnection',
 ];
+const START_FLAG_LABEL = 'Recommended starting point';
 
 type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
 type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
@@ -131,6 +132,7 @@ export default function App() {
   const [practiceVisibility, setPracticeVisibility] = useState<Score | 'all'>('all');
   const [practiceQuery, setPracticeQuery] = useState('');
   const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
+  const [pillarOverrides, setPillarOverrides] = useState<Record<string, Pillar>>({});
   const [swaps, setSwaps] = useState<Record<string, string>>({});
   const [sheetConnected, setSheetConnected] = useState(false);
 
@@ -146,13 +148,14 @@ export default function App() {
           return [
             respondent.id,
             buildPlan(respondent, settings, {
+              pillarId: pillarOverrides[respondent.id],
               levelId: levelOverrides[respondent.id],
               swaps: slotSwaps,
             }),
           ];
         }),
       ),
-    [respondents, settings, levelOverrides, swaps],
+    [respondents, settings, levelOverrides, pillarOverrides, swaps],
   );
   const circles = useMemo(() => autoCluster(respondents, plans, settings), [respondents, plans, settings]);
   const filtered = respondents.filter((respondent) => {
@@ -206,6 +209,7 @@ export default function App() {
     setSearch('');
     setPlanOpen(false);
     setLevelOverrides({});
+    setPillarOverrides({});
     setSwaps({});
     setStatus(nextStatus);
   }
@@ -215,8 +219,7 @@ export default function App() {
     setStatus('Not connected — using local data');
   }
 
-  function setLevelOverride(respondentId: string, level: Level) {
-    setLevelOverrides((prev) => ({ ...prev, [respondentId]: level }));
+  function clearMemberSwaps(respondentId: string) {
     setSwaps((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((key) => {
@@ -226,6 +229,23 @@ export default function App() {
     });
   }
 
+  function setLevelOverride(respondentId: string, level: Level) {
+    setLevelOverrides((prev) => ({ ...prev, [respondentId]: level }));
+    clearMemberSwaps(respondentId);
+  }
+
+  function setPillarOverride(respondentId: string, pillar: Pillar) {
+    const person = respondents.find((respondent) => respondent.id === respondentId);
+    const matched = person ? computeRecommendation(person, settings).pillarId : pillar;
+    setPillarOverrides((prev) => {
+      const next = { ...prev };
+      if (pillar === matched) delete next[respondentId];
+      else next[respondentId] = pillar;
+      return next;
+    });
+    clearMemberSwaps(respondentId);
+  }
+
   function swapPractice(respondentId: string, index: number, text: string) {
     setSwaps((prev) => ({ ...prev, [`${respondentId}:${index}`]: text }));
   }
@@ -233,6 +253,7 @@ export default function App() {
   function resetOverrides() {
     setSwaps({});
     setLevelOverrides({});
+    setPillarOverrides({});
   }
 
   if (!authed) {
@@ -358,6 +379,8 @@ export default function App() {
                 circle={selectedCircle}
                 onOpenPlan={() => setPlanOpen(true)}
                 onLevelOverride={(level) => setLevelOverride(selected.id, level)}
+                onPillarOverride={(pillar) => setPillarOverride(selected.id, pillar)}
+                spanOverridden={Boolean(pillarOverrides[selected.id])}
                 onSwapPractice={(index, text) => swapPractice(selected.id, index, text)}
               />
             ) : (
@@ -397,7 +420,7 @@ export default function App() {
           sheetConnected={sheetConnected}
           status={status}
           onSample={loadSamples}
-          overrideSummary={overrideSummary(swaps, levelOverrides)}
+          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
           plans={plans}
@@ -436,6 +459,8 @@ function RespondentPlan({
   circle,
   onOpenPlan,
   onLevelOverride,
+  onPillarOverride,
+  spanOverridden,
   onSwapPractice,
 }: {
   respondent: Respondent;
@@ -443,6 +468,8 @@ function RespondentPlan({
   circle: Circle | null;
   onOpenPlan: () => void;
   onLevelOverride: (level: Level) => void;
+  onPillarOverride: (pillar: Pillar) => void;
+  spanOverridden: boolean;
   onSwapPractice: (index: number, text: string) => void;
 }) {
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
@@ -526,8 +553,6 @@ function RespondentPlan({
           <div className="practiceList">
             {plan.items.map((item, index) => {
               const itemKey = `${index}-${item.category}-${item.practice.text}`;
-              const social = SOCIAL_CATEGORIES[plan.pillarId].includes(item.category);
-              const reasonText = reasonLabel(item.reason);
               const source = item.practice.references.join('\n') || item.practice.evidence;
               const sourceExpanded = sourceOpen === itemKey;
               return (
@@ -535,9 +560,7 @@ function RespondentPlan({
                   <span className="slot">{String(index + 1).padStart(2, '0')}</span>
                   <div className="practiceBody">
                     <div className="practiceHead">
-                      <span className={social ? 'familyLabel social' : 'familyLabel'}>
-                        {item.category}{social ? ' · Circle' : ''}
-                      </span>
+                      <span className="familyLabel">{item.category}</span>
                       <span className="practiceActions">
                         <button
                           title="How Swap works"
@@ -562,12 +585,7 @@ function RespondentPlan({
                         <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this member only and leaves the Practice Bank untouched.</p>
                       </div>
                     )}
-                    {reasonText && (
-                      <span className={item.reason === 'social' ? 'reasonTag social' : 'reasonTag habit'}>
-                        {reasonText}
-                      </span>
-                    )}
-                    {item.startWithThis && <span className="reasonTag start">Start with this</span>}
+                    {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
                     <h4>{item.practice.text}</h4>
                     {item.practice.why && <p className="practiceWhy">{item.practice.why}</p>}
                     {source && (
@@ -639,10 +657,16 @@ function RespondentPlan({
                 <p>The highest total (base + goal weight, or the override) wins the Span. If they said “I'm not sure” for their goal, there's no pillar to apply the weight to, so this slider has no effect regardless of position.</p>
               </div>
             )}
-            {plan.overridden && (
+            {plan.overridden && !spanOverridden && (
               <div className="infoBox">
                 <strong>Stated goal override active</strong>
                 <p>Scores below are shown for reference only; they did not decide the outcome.</p>
+              </div>
+            )}
+            {spanOverridden && (
+              <div className="infoBox">
+                <strong>Span override active</strong>
+                <p>This member is assigned to {PILLAR_LABEL[plan.pillarId]} manually. Scores below are shown for reference only.</p>
               </div>
             )}
             {goalUnsure && (
@@ -650,9 +674,9 @@ function RespondentPlan({
                 <p>This person said they weren't sure which area to focus on, so the stated-goal slider has no effect — their Span is decided entirely by habit answers and stated challenges.</p>
               </div>
             )}
-            <div className="scoreGrid" style={{ opacity: plan.overridden ? 0.45 : 1 }}>
-              {rankedPillars.map((pillar, index) => (
-                <div key={pillar} className={index === 0 ? 'scoreRow winner' : 'scoreRow'}>
+            <div className="scoreGrid" style={{ opacity: plan.overridden || spanOverridden ? 0.45 : 1 }}>
+              {rankedPillars.map((pillar) => (
+                <div key={pillar} className={pillar === plan.pillarId ? 'scoreRow winner' : 'scoreRow'}>
                   <span>{PILLAR_LABEL[pillar]}</span>
                   <div className="bar">
                     <i style={{ width: `${Math.min(100, Math.max(3, plan.scores[pillar] * 100))}%` }} />
@@ -660,6 +684,22 @@ function RespondentPlan({
                   <strong>{plan.scores[pillar].toFixed(2)}</strong>
                 </div>
               ))}
+            </div>
+            <div className="pillarOverride">
+              <strong>Span override</strong>
+              <p>Assign this member to a different Span. Their five practices rebuild for that Span, and Circle grouping follows it. Scores above stay as the matcher calculated them.</p>
+              <div className="seg">
+                {PILLARS.map((pillar) => (
+                  <button
+                    key={pillar}
+                    type="button"
+                    className={plan.pillarId === pillar ? 'selected' : ''}
+                    onClick={() => onPillarOverride(pillar)}
+                  >
+                    {PILLAR_LABEL[pillar]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -834,22 +874,33 @@ function PlanDocument({
           <p>Throughout the journey, your Circle will be alongside you — sharing experiences, encouraging one another, checking in, and taking part in some practices together.</p>
           <div className="sharedQuote">Small steps are easier, and often more meaningful, when they're shared.</div>
           <div className="planPracticeList">
-            {plan.items.map((item, index) => (
-              <article className="planPractice" key={`${item.category}-${item.practice.text}`} data-plancard>
-                <span>{index + 1}</span>
-                <div>
-                  <p className="eyebrow">{item.category}{item.startWithThis ? ' · Start with this' : ''}</p>
-                  <h3>{item.practice.text}</h3>
-                  {item.practice.why && <p>{item.practice.why}</p>}
-                  {item.practice.evidence && (
-                    <div className="planEvidence">
-                      <strong>The Evidence</strong>
-                      <p>{item.practice.evidence}</p>
-                    </div>
-                  )}
-                </div>
-              </article>
-            ))}
+            {plan.items.map((item, index) => {
+              const n = index + 1;
+              return (
+                <article
+                  className="planPractice"
+                  id={`plan-practice-${n}`}
+                  key={`${item.category}-${item.practice.text}`}
+                  data-plancard
+                >
+                  <span>{n}</span>
+                  <div>
+                    <p className="eyebrow">{item.category}{item.startWithThis ? ` · ${START_FLAG_LABEL}` : ''}</p>
+                    <h3>
+                      {item.practice.text}
+                      <a
+                        className="planFootnoteRef"
+                        href={`#plan-note-${n}`}
+                        aria-label={`Evidence for practice ${n}`}
+                      >
+                        {n}
+                      </a>
+                    </h3>
+                    {item.practice.why && <p>{item.practice.why}</p>}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </PlanSection>
 
@@ -872,9 +923,89 @@ function PlanDocument({
           </div>
           <p>Good Span is designed to support healthy habits and wellbeing. It isn't a substitute for medical advice, diagnosis or treatment. If you have a diagnosed health condition or concerns about making lifestyle changes, please speak with a qualified healthcare professional before starting.</p>
         </section>
+
+        <section className="planNotes">
+          <h2>Evidence</h2>
+          <p>Sources for the practices above. Each number matches the practice it supports.</p>
+          <ol>
+            {plan.items.map((item, index) => {
+              const n = index + 1;
+              return (
+                <li key={`${item.category}-${item.practice.text}`} id={`plan-note-${n}`}>
+                  <a className="planNoteBack" href={`#plan-practice-${n}`}>
+                    {n}. {item.category}
+                  </a>
+                  {item.practice.evidence && <p>{item.practice.evidence}</p>}
+                  {item.practice.references.length > 0 && (
+                    <ul>
+                      {splitPracticeReferences(item.practice.references).map((reference, refIndex) => (
+                        <li key={`${n}-${refIndex}`}>
+                          <Citation reference={reference} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
       </section>
     </main>
   );
+}
+
+function normalizeCitationUrl(raw: string): string {
+  let url = raw.replace(/[),.;]+$/g, '');
+  const gluedName = url.match(/^(.*\d)([A-Z][a-z].*)$/);
+  if (gluedName) return gluedName[1];
+  const gluedDotName = url.match(/^(.*\d)\.([A-Z].*)$/);
+  if (gluedDotName) return gluedDotName[1];
+  return url;
+}
+
+function splitPracticeReferences(references: string[]): string[] {
+  return references.flatMap((reference) => {
+    const pieces: string[] = [];
+    const urlRe = /https?:\/\/[^\s]+/gi;
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+    while ((match = urlRe.exec(reference))) {
+      const href = normalizeCitationUrl(match[0]);
+      const urlEnd = match.index + href.length;
+      const after = reference.slice(urlEnd);
+      const dotted = after.match(/^\.\s+(?=[A-Z])/);
+      if (/^[A-Z][a-z]/.test(after) || dotted) {
+        pieces.push(reference.slice(cursor, urlEnd).trim());
+        cursor = urlEnd + (dotted ? dotted[0].length : 0);
+        urlRe.lastIndex = cursor;
+      }
+    }
+    const tail = reference.slice(cursor).trim();
+    if (tail) pieces.push(tail);
+    return pieces.length ? pieces : [reference];
+  });
+}
+
+function Citation({ reference }: { reference: string }) {
+  const nodes: ReactNode[] = [];
+  const urlRe = /https?:\/\/[^\s]+/gi;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = urlRe.exec(reference))) {
+    if (match.index > last) nodes.push(reference.slice(last, match.index));
+    const href = normalizeCitationUrl(match[0]);
+    nodes.push(
+      <a key={key++} href={href} target="_blank" rel="noreferrer">
+        {href}
+      </a>,
+    );
+    last = match.index + href.length;
+    urlRe.lastIndex = last;
+  }
+  if (last < reference.length) nodes.push(reference.slice(last));
+  return <>{nodes}</>;
 }
 
 function PlanSection({ number, title: heading, children }: { number: string; title: string; children: ReactNode }) {
@@ -1413,7 +1544,7 @@ function SettingsView({
 
       <section className="settingSection">
         <div>
-          <h2>How "Start with this" works</h2>
+          <h2>How "{START_FLAG_LABEL}" works</h2>
           <p>These controls only change which of the five already-chosen practices are flagged as a starting point. They do not change which five practices are in the plan.</p>
         </div>
         <div className="settingBody">
@@ -1733,7 +1864,7 @@ function StartWithThisControls({
       <div className="subBlock startPresetsBlock">
         <strong>Preset</strong>
         <p>Sets the four scoring weights at once. Flags per plan and minimum visibility stay as you set them.</p>
-        <div className="startPresets" role="radiogroup" aria-label="Start with this weighting preset">
+        <div className="startPresets" role="radiogroup" aria-label={`${START_FLAG_LABEL} weighting preset`}>
           {START_WEIGHT_PRESET_ORDER.map((id) => (
             <button
               key={id}
@@ -1764,7 +1895,7 @@ function StartWithThisControls({
         step={1}
         left="None"
         right="Up to 3"
-        desc="Maximum number of practices flagged Start with this. A plan can still receive fewer — including none — if too few practices clear the gates."
+        desc={`Maximum number of practices flagged ${START_FLAG_LABEL}. A plan can still receive fewer — including none — if too few practices clear the gates.`}
         onChange={(value) => update((next) => { next.startWithThis.flagsPerPlan = value; })}
       />
 
@@ -1872,7 +2003,7 @@ function StartWithThisPreview({
   return (
     <div className="startPreview">
       <strong>Live preview</strong>
-      <p>The five practices stay the same. Watch which ones are flagged Start with this as you change the settings above.</p>
+      <p>The five practices stay the same. Watch which ones are flagged {START_FLAG_LABEL} as you change the settings above.</p>
       {respondents.length === 0 || !preview || !plan ? (
         <div className="startPreviewEmpty">
           <p>Load members to see a real plan. Sample data is enough to try the flags.</p>
@@ -1902,7 +2033,7 @@ function StartWithThisPreview({
                   <span className="eyebrow">{item.category}</span>
                   <strong>{item.practice.text}</strong>
                 </div>
-                {item.startWithThis && <span className="reasonTag start">Start with this</span>}
+                {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
               </li>
             ))}
           </ol>
@@ -2009,15 +2140,6 @@ function practiceCount(): number {
   );
 }
 
-function reasonLabel(reason: Plan['items'][number]['reason']): string {
-  if (reason === 'social') return 'Circle practice';
-  if (reason.startsWith('habit:')) {
-    const habit = HABIT_LABEL[reason.slice(6) as keyof typeof HABIT_LABEL];
-    return habit ? `Prioritized on ${habit.toLowerCase()}` : '';
-  }
-  return '';
-}
-
 function labelForTime(value: string): string {
   return {
     under5: 'Under 5 min/day',
@@ -2036,11 +2158,21 @@ function shortTime(value: string): string {
   }[value] ?? '-';
 }
 
-function overrideSummary(swaps: Record<string, string>, levelOverrides: Record<string, Level>) {
+function overrideSummary(
+  swaps: Record<string, string>,
+  levelOverrides: Record<string, Level>,
+  pillarOverrides: Record<string, Pillar>,
+) {
   const swapCount = Object.keys(swaps).length;
   const levelCount = Object.keys(levelOverrides).length;
-  if (swapCount + levelCount === 0) return 'No manual swaps or intensity overrides yet.';
-  return `${swapCount} practice swap${swapCount === 1 ? '' : 's'} and ${levelCount} intensity override${levelCount === 1 ? '' : 's'} active.`;
+  const pillarCount = Object.keys(pillarOverrides).length;
+  if (swapCount + levelCount + pillarCount === 0) return 'No manual swaps, intensity overrides or Span overrides yet.';
+  const parts = [
+    `${swapCount} practice swap${swapCount === 1 ? '' : 's'}`,
+    `${levelCount} intensity override${levelCount === 1 ? '' : 's'}`,
+    `${pillarCount} Span override${pillarCount === 1 ? '' : 's'}`,
+  ];
+  return `${parts.join(', ')} active.`;
 }
 
 function peopleLabel(value: number) {

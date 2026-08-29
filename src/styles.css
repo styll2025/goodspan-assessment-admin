@@ -704,7 +704,6 @@ p {
 .reasonTag.start {
   background: #f3ecd8;
   color: #7a5a20;
-  margin-left: 6px;
 }
 
 .evidenceRow {
@@ -833,6 +832,33 @@ summary {
 .scoreRow.winner > span,
 .scoreRow.winner > strong {
   color: #1b1f1a;
+}
+
+.pillarOverride {
+  border-top: 1px solid #dfddd3;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.pillarOverride > strong {
+  display: block;
+  font-size: 13px;
+}
+
+.pillarOverride > p {
+  color: #5a5f56;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 10px;
+}
+
+.pillarOverride .seg {
+  width: 100%;
+}
+
+.pillarOverride .seg button {
+  flex: 1 1 0;
+  text-transform: none;
 }
 
 .bar {
@@ -2648,6 +2674,7 @@ summary {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   border: 2px solid #1b1f1a;
+  scroll-margin-top: 88px;
 }
 
 .planPractice > span {
@@ -2674,25 +2701,100 @@ summary {
   margin-top: 7px;
 }
 
-.planEvidence {
-  background: #f0eee4;
-  margin-top: 14px;
-  padding: 12px 14px;
+.planFootnoteRef {
+  display: inline-block;
+  margin-left: 5px;
+  border-bottom: 1.5px solid #aece36;
+  color: #1b3327;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: super;
 }
 
-.planEvidence strong {
+.planFootnoteRef:hover,
+.planNoteBack:hover,
+.planNotes a:hover {
+  color: #1b3327;
+}
+
+.planNotes {
+  border-top: 2px solid #1b1f1a;
+  margin-top: 54px;
+  padding-top: 28px;
+}
+
+.planNotes h2 {
   color: #5a5f56;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.planNotes > p {
+  color: #8a8f86;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+  max-width: 66ch;
+}
+
+.planNotes ol {
+  display: grid;
+  gap: 22px;
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+}
+
+.planNotes ol > li {
+  scroll-margin-top: 88px;
+}
+
+.planNotes ol > li:target {
+  background: #f4f6e8;
+  outline: 2px solid #aece36;
+  outline-offset: 8px;
+}
+
+.planNoteBack {
+  color: #1b3327;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-decoration: none;
   text-transform: uppercase;
 }
 
-.planEvidence p {
+.planNotes ol > li > p {
   color: #3d423a;
-  font-size: 13.5px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+  max-width: 70ch;
+}
+
+.planNotes ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planNotes ul li {
+  color: #5a5f56;
+  font-size: 12.5px;
   line-height: 1.55;
-  margin-top: 5px;
+  margin-top: 8px;
+  max-width: 72ch;
+  padding-left: 14px;
+  text-indent: -14px;
+}
+
+.planNotes ul a {
+  color: #1b3327;
+  overflow-wrap: anywhere;
 }
 
 .beforeBegin {

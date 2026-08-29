@@ -388,6 +388,16 @@ describe('C5 start with this', () => {
     expect(none.items.filter((entry) => entry.startWithThis)).toHaveLength(0);
     expect(none.items).toHaveLength(5);
   });
+
+  it('rebuilds practices from an admin pillar override without changing scores', () => {
+    const person = respondent({ focusArea: 'mind' });
+    const matched = buildPlan(person);
+    const overridden = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
+    expect(overridden.pillarId).toBe('sleep');
+    expect(overridden.items).toHaveLength(5);
+    expect(overridden.scores).toEqual(matched.scores);
+    expect(Object.keys(PRACTICES.sleep)).toEqual(expect.arrayContaining(overridden.items.map((item) => item.category)));
+  });
 });
 
 describe('E circle diversity', () => {

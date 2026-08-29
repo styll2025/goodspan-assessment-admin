@@ -278,12 +278,13 @@ export function matchedChallengeTerms(
 export function buildPlan(
   respondent: Respondent,
   settings: MatchingSettings = DEFAULT_SETTINGS,
-  overrides?: { levelId?: Level; swaps?: Record<number, string> },
+  overrides?: { pillarId?: Pillar; levelId?: Level; swaps?: Record<number, string> },
 ): Plan {
   const rec = computeRecommendation(respondent, settings);
+  const pillarId = overrides?.pillarId ?? rec.pillarId;
   const levelId = overrides?.levelId ?? rec.levelId;
-  const scoredCategories = buildScoredCategories(rec.pillarId, levelId, respondent, settings);
-  let items = buildSlots(scoredCategories, rec.pillarId, respondent, settings);
+  const scoredCategories = buildScoredCategories(pillarId, levelId, respondent, settings);
+  let items = buildSlots(scoredCategories, pillarId, respondent, settings);
   if (overrides?.swaps) {
     items = items.map((item, index) => {
       const text = overrides.swaps?.[index];
@@ -299,11 +300,11 @@ export function buildPlan(
   }
   return {
     respondentId: respondent.id,
-    pillarId: rec.pillarId,
+    pillarId,
     levelId,
     overridden: rec.overridden,
     scores: rec.scores,
-    items: flagStartWithThis(items, rec.pillarId, respondent, settings),
+    items: flagStartWithThis(items, pillarId, respondent, settings),
   };
 }
 
