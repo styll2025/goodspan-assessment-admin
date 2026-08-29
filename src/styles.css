@@ -702,8 +702,8 @@ p {
 }
 
 .reasonTag.start {
-  background: #f3ecd8;
-  color: #7a5a20;
+  background: #d9eaf7;
+  color: #245a7a;
 }
 
 .evidenceRow {
@@ -1347,6 +1347,13 @@ summary {
   margin: 12px 0 0;
 }
 
+.circleSatellites {
+  color: #5a5f56;
+  font-size: 12.5px;
+  line-height: 1.4;
+  margin: 4px 0 0;
+}
+
 .circleSize {
   font-size: 11.5px;
   font-weight: 700;
@@ -1370,7 +1377,7 @@ summary {
 .circle li {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 11px;
   border-bottom: 1px solid #eae8de;
   padding: 9px 0;
@@ -1389,7 +1396,10 @@ summary {
 }
 
 .circle li strong {
-  display: block;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   font-size: 14px;
   font-weight: 700;
 }
@@ -1398,6 +1408,60 @@ summary {
   display: block;
   color: #5a5f56;
   font-size: 12px;
+}
+
+.movedTag {
+  background: #d9eaf7;
+  color: #245a7a;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 5px;
+  text-transform: uppercase;
+}
+
+.circleMove {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.circleMove span {
+  color: #8a8f86;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.circleMove select {
+  width: 100%;
+  height: 34px;
+  border-color: #1b1f1a;
+  background: #fff;
+  font-size: 12px;
+}
+
+.circleOverviewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 16px;
+  border: 2px solid #1b1f1a;
+  background: #aece36;
+  color: #1b1f1a;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.circleOverviewHint {
+  color: #8a8f86;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 8px 0 0;
 }
 
 .split,
@@ -2703,10 +2767,10 @@ summary {
 
 .planFootnoteRef {
   display: inline-block;
-  margin-left: 5px;
+  margin-left: 6px;
   border-bottom: 1.5px solid #aece36;
   color: #1b3327;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1;
   text-decoration: none;
@@ -2715,76 +2779,79 @@ summary {
 
 .planFootnoteRef:hover,
 .planNoteBack:hover,
-.planNotes a:hover {
+.planNotesList a:hover {
   color: #1b3327;
 }
 
-.planNotes {
-  border-top: 2px solid #1b1f1a;
-  margin-top: 54px;
-  padding-top: 28px;
-}
-
-.planNotes h2 {
-  color: #5a5f56;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.planNotes > p {
-  color: #8a8f86;
-  font-size: 13.5px;
-  line-height: 1.55;
-  margin: 8px 0 0;
-  max-width: 66ch;
-}
-
-.planNotes ol {
+.planNotesList {
   display: grid;
-  gap: 22px;
+  gap: 28px;
   list-style: none;
-  margin: 22px 0 0;
+  margin: 28px 0 0;
   padding: 0;
 }
 
-.planNotes ol > li {
+.planNotesList > li {
   scroll-margin-top: 88px;
 }
 
-.planNotes ol > li:target {
+.planNotesList > li:target {
   background: #f4f6e8;
   outline: 2px solid #aece36;
-  outline-offset: 8px;
+  outline-offset: 10px;
 }
 
 .planNoteBack {
-  color: #1b3327;
-  font-size: 12.5px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #1b1f1a;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
   text-decoration: none;
+}
+
+.planNoteBack span {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  background: #1b3327;
+  color: #aece36;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.planNotesList .planNoteCategory {
+  color: #8a8f86;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 10px 0 0;
   text-transform: uppercase;
 }
 
-.planNotes ol > li > p {
+.planNotesList > li > p {
   color: #3d423a;
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.6;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   max-width: 70ch;
 }
 
-.planNotes ul {
-  margin: 10px 0 0;
+.planNotesList ul {
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.planNotes ul li {
+.planNotesList ul li {
   color: #5a5f56;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.55;
   margin-top: 8px;
   max-width: 72ch;
@@ -2792,9 +2859,143 @@ summary {
   text-indent: -14px;
 }
 
-.planNotes ul a {
+.planNotesList ul a {
   color: #1b3327;
   overflow-wrap: anywhere;
+}
+
+.circleShareBlock {
+  margin-top: 26px;
+}
+
+.circleShareBlock h3,
+.circleMemberPractices > strong,
+.circleSimilarGroup > strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+
+.circleShareBlock > p {
+  color: #8a8f86;
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.circleShareBlock ul,
+.circleSimilarGroup ul,
+.circleMemberPractices ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.circleShareBlock li,
+.circleSimilarGroup li,
+.circleMemberPractices li {
+  border-top: 1px solid #dfddd3;
+  padding: 10px 0;
+}
+
+.circleShareBlock li strong,
+.circleMemberPractices li {
+  display: block;
+  color: #1b1f1a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.circleShareBlock li span,
+.circleMemberPractices li span,
+.circleSimilarGroup li span {
+  display: block;
+  color: #8a8f86;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.circleSimilarGroup {
+  margin-top: 16px;
+}
+
+.circleMemberDocs {
+  display: grid;
+  gap: 22px;
+  margin-top: 28px;
+}
+
+.circleMemberDoc {
+  border: 2px solid #1b1f1a;
+  padding: 20px 20px 8px;
+}
+
+.circleMemberDocHead {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border-bottom: 2px solid #1b1f1a;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+}
+
+.circleMemberDocHead span {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: #1b3327;
+  color: #aece36;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.circleMemberDocHead h3 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.circleMemberDocHead p {
+  color: #5a5f56;
+  font-size: 13.5px;
+  margin: 4px 0 0;
+}
+
+.circleMemberDoc dl {
+  margin: 0;
+}
+
+.circleMemberDoc dl > div {
+  padding: 12px 0;
+  border-bottom: 1px solid #eae8de;
+}
+
+.circleMemberDoc dt {
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.circleMemberDoc dd {
+  color: #3d423a;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+
+.circleMemberPractices {
+  padding: 16px 0 12px;
 }
 
 .beforeBegin {
@@ -2903,7 +3104,10 @@ summary {
     padding: 16mm 18mm !important;
   }
 
-  .planPractice {
+  .planPractice,
+  .circleMemberDoc,
+  .circleShareBlock,
+  .circleSimilarGroup {
     break-inside: avoid;
   }
 

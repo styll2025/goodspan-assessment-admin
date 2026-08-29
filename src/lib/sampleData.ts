@@ -71,7 +71,11 @@ export function generateSampleRespondents(): Respondent[] {
         workStatus: ['Studying', 'Working full-time', 'Working part-time or freelance', 'Between jobs', 'Retired or semi-retired'][index % 5],
         homeLife: ['No children at home', 'Parent of young children', 'Parent of teens or adult children', 'Caring for a family member'][index % 4],
         gender: ['Woman', 'Man', 'Non-binary', 'Prefer not to say'][index % 4],
-        location: cohort.city,
+        location: cohort.city === 'Lisbon, Portugal' && cohort.pillar === 'mind' && i === 1
+          ? 'Cascais, Portugal'
+          : cohort.city === 'Lisbon, Portugal' && cohort.pillar === 'mind' && i === 2
+            ? 'Costa da Caparica, Portugal'
+            : cohort.city,
         personality: ['introvert', 'ambivert', 'extrovert'][index % 3] as Respondent['personality'],
         lifeStage: ['Early career', 'Raising a family', 'Midlife', 'Later life'][index % 4],
         ...habitsFor(cohort.pillar),

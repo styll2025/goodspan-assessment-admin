@@ -100,6 +100,7 @@ export type Plan = {
 };
 
 export type Circle = {
+  id: string;
   pillarId: Pillar;
   city: string;
   members: Respondent[];

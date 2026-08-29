@@ -1,4 +1,5 @@
 import practicesData from '../data/practices-data.json';
+import { clusterCity } from './cities';
 import type {
   Barrier,
   Challenge,
@@ -317,7 +318,7 @@ export function autoCluster(
   respondents.forEach((respondent) => {
     const plan = plans.get(respondent.id);
     if (!plan) return;
-    const city = normalizeLocation(respondent.location);
+    const city = clusterCity(respondent.location);
     const key = `${plan.pillarId}|${city}`;
     const bucket = buckets.get(key) ?? { pillarId: plan.pillarId, city, people: [] };
     bucket.people.push(respondent);
@@ -325,12 +326,71 @@ export function autoCluster(
   });
 
   return [...buckets.values()].flatMap((bucket) =>
-    buildDiverseGroups(bucket.people, settings).map((group) => ({
+    buildDiverseGroups(bucket.people, settings).map((group, groupIndex) => ({
+      id: circleId(bucket.pillarId, bucket.city, groupIndex),
       pillarId: bucket.pillarId,
       city: bucket.city || 'unspecified',
       ...group,
     })),
   );
+}
+
+export function circleId(pillarId: Pillar, city: string, index: number | string): string {
+  return `${pillarId}::${city}::${index}`;
+}
+
+export function newCircleId(pillarId: Pillar, city: string, seedMemberId: string): string {
+  return `manual:${circleId(pillarId, city, seedMemberId)}`;
+}
+
+export function applyCircleOverrides(
+  circles: Circle[],
+  overrides: Record<string, string>,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
+): Circle[] {
+  const next = circles.map((circle) => ({ ...circle, members: [...circle.members] }));
+  const byId = new Map(next.map((circle) => [circle.id, circle]));
+
+  Object.entries(overrides).forEach(([memberId, targetId]) => {
+    if (!targetId) return;
+    let target = byId.get(targetId);
+    if (!target && targetId.startsWith('manual:')) {
+      const parsed = parseManualCircleId(targetId);
+      if (!parsed) return;
+      target = {
+        id: targetId,
+        pillarId: parsed.pillarId,
+        city: parsed.city,
+        members: [],
+        needsMore: true,
+        mixed: false,
+      };
+      next.push(target);
+      byId.set(target.id, target);
+    }
+    if (!target) return;
+    const source = next.find((circle) => circle.members.some((member) => member.id === memberId));
+    if (!source || source.id === target.id) return;
+    const member = source.members.find((entry) => entry.id === memberId);
+    if (!member) return;
+    source.members = source.members.filter((entry) => entry.id !== memberId);
+    target.members = [...target.members, member];
+  });
+
+  return next
+    .filter((circle) => circle.members.length > 0)
+    .map((circle) => ({
+      ...circle,
+      needsMore: circle.members.length < settings.minCircleSize,
+      mixed: circle.members.length > settings.maxCircleSize,
+    }));
+}
+
+function parseManualCircleId(id: string): { pillarId: Pillar; city: string } | null {
+  const body = id.startsWith('manual:') ? id.slice('manual:'.length) : id;
+  const [pillarId, ...rest] = body.split('::');
+  if (!PILLARS.includes(pillarId as Pillar) || rest.length < 2) return null;
+  return { pillarId: pillarId as Pillar, city: rest.slice(0, -1).join('::') };
 }
 
 export function suggestCircleFor(person: Respondent, circles: Circle[]): Circle | null {
@@ -513,6 +573,12 @@ export function flagStartWithThis(
   return planItems.map((item) => ({ ...item, startWithThis: flagged.has(item) }));
 }
 
+export function practicesForDisplay(items: PlanItem[]): Array<{ item: PlanItem; slotIndex: number }> {
+  return items
+    .map((item, slotIndex) => ({ item, slotIndex }))
+    .sort((a, b) => Number(b.item.startWithThis) - Number(a.item.startWithThis) || a.slotIndex - b.slotIndex);
+}
+
 export function buildDiverseGroups(
   pool: Respondent[],
   settings: MatchingSettings = DEFAULT_SETTINGS,
@@ -549,10 +615,9 @@ export function buildDiverseGroups(
     }));
 }
 
-function chooseGroupCount(n: number, minSize: number, maxSize: number, targetSize: number): number {
-  if (n < minSize) return 1;
-  let numGroups = Math.max(1, Math.round(n / targetSize));
-  while (n / numGroups > maxSize) numGroups += 1;
+function chooseGroupCount(n: number, minSize: number, maxSize: number, _targetSize: number): number {
+  if (n <= maxSize) return 1;
+  let numGroups = Math.max(1, Math.ceil(n / maxSize));
   while (numGroups > 1 && n / numGroups < minSize) numGroups -= 1;
   return numGroups;
 }
@@ -575,9 +640,6 @@ function topScore(category: ScoredCategory): number {
   return category.practices[0]?.score ?? 0;
 }
 
-function normalizeLocation(location: string): string {
-  return location.trim().toLowerCase();
-}
 
 function same(a: string, b: string): number {
   return (a || 'Unspecified') === (b || 'Unspecified') ? 1 : 0;

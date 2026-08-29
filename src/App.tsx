@@ -12,14 +12,18 @@ import {
   PILLARS,
   PRACTICES,
   TIME_TO_LEVEL,
+  applyCircleOverrides,
   autoCluster,
   buildPlan,
   cloneSettings,
   computeRecommendation,
   matchedChallengeTerms,
+  newCircleId,
   normalizeRespondent,
+  practicesForDisplay,
   suggestCircleFor,
 } from './lib/matching';
+import { satelliteCities } from './lib/cities';
 import { generateSampleRespondents } from './lib/sampleData';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, StartWithThisSettings, TimePerDay } from './types';
 
@@ -122,6 +126,7 @@ export default function App() {
   const [respondents, setRespondents] = useState<Respondent[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [planOpen, setPlanOpen] = useState(false);
+  const [circleOverview, setCircleOverview] = useState<{ circle: Circle; index: number } | null>(null);
   const [search, setSearch] = useState('');
   const [settings, setSettings] = useState<MatchingSettings>(DEFAULT_SETTINGS);
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
@@ -134,6 +139,7 @@ export default function App() {
   const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
   const [pillarOverrides, setPillarOverrides] = useState<Record<string, Pillar>>({});
   const [swaps, setSwaps] = useState<Record<string, string>>({});
+  const [circleOverrides, setCircleOverrides] = useState<Record<string, string>>({});
   const [sheetConnected, setSheetConnected] = useState(false);
 
   const plans = useMemo(
@@ -157,7 +163,11 @@ export default function App() {
       ),
     [respondents, settings, levelOverrides, pillarOverrides, swaps],
   );
-  const circles = useMemo(() => autoCluster(respondents, plans, settings), [respondents, plans, settings]);
+  const autoCircles = useMemo(() => autoCluster(respondents, plans, settings), [respondents, plans, settings]);
+  const circles = useMemo(
+    () => applyCircleOverrides(autoCircles, circleOverrides, settings),
+    [autoCircles, circleOverrides, settings],
+  );
   const filtered = respondents.filter((respondent) => {
     const q = search.toLowerCase();
     return !q || respondent.preferredName.toLowerCase().includes(q) || respondent.location.toLowerCase().includes(q);
@@ -208,9 +218,11 @@ export default function App() {
     setSelectedId(next[0]?.id ?? '');
     setSearch('');
     setPlanOpen(false);
+    setCircleOverview(null);
     setLevelOverrides({});
     setPillarOverrides({});
     setSwaps({});
+    setCircleOverrides({});
     setStatus(nextStatus);
   }
 
@@ -254,6 +266,17 @@ export default function App() {
     setSwaps({});
     setLevelOverrides({});
     setPillarOverrides({});
+    setCircleOverrides({});
+  }
+
+  function moveCircleMember(memberId: string, targetId: string) {
+    const home = autoCircles.find((circle) => circle.members.some((member) => member.id === memberId));
+    setCircleOverrides((prev) => {
+      const next = { ...prev };
+      if (!targetId || (home && targetId === home.id)) delete next[memberId];
+      else next[memberId] = targetId;
+      return next;
+    });
   }
 
   if (!authed) {
@@ -292,10 +315,11 @@ export default function App() {
   }
 
   const isPlanMode = Boolean(tab === 'members' && planOpen && selected && selectedPlan);
+  const isCircleOverviewMode = Boolean(tab === 'circles' && circleOverview);
 
   return (
     <div className="appShell">
-      {!isPlanMode && (
+      {!isPlanMode && !isCircleOverviewMode && (
         <header className="topbar">
           <div className="topLeft">
             <div className="brandCompact">
@@ -310,6 +334,7 @@ export default function App() {
                   onClick={() => {
                     setTab(item);
                     setPlanOpen(false);
+                    setCircleOverview(null);
                   }}
                 >
                   {item === 'library' ? 'Library' : title(item)}
@@ -390,8 +415,24 @@ export default function App() {
         </section>
       )}
 
-      {tab === 'circles' && (
-        <CirclesView circles={circles} respondentCount={respondents.length} settings={settings} />
+      {tab === 'circles' && circleOverview && (
+        <CircleOverview
+          circle={circleOverview.circle}
+          index={circleOverview.index}
+          plans={plans}
+          onBack={() => setCircleOverview(null)}
+        />
+      )}
+
+      {tab === 'circles' && !circleOverview && (
+        <CirclesView
+          circles={circles}
+          respondentCount={respondents.length}
+          settings={settings}
+          movedIds={circleOverrides}
+          onMoveMember={moveCircleMember}
+          onOpenOverview={(circle, index) => setCircleOverview({ circle, index })}
+        />
       )}
 
       {tab === 'library' && (
@@ -420,7 +461,7 @@ export default function App() {
           sheetConnected={sheetConnected}
           status={status}
           onSample={loadSamples}
-          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides)}
+          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, circleOverrides)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
           plans={plans}
@@ -482,7 +523,7 @@ function RespondentPlan({
   const circleMembers = circle?.members.filter((member) => member.id !== respondent.id) ?? [];
   const pillarTint = PILLAR_TINT[plan.pillarId];
   const circleCaption = circleMembers.length
-    ? `${circleMembers.length} ${circleMembers.length === 1 ? 'other' : 'others'} in their proposed Circle · ${respondent.location || 'Location unknown'}`
+    ? `${circleMembers.length} ${circleMembers.length === 1 ? 'other' : 'others'} in their proposed Circle · ${circle?.city ?? respondent.location}`
     : `No circle yet — needs more people in this city on ${PILLAR_LABEL[plan.pillarId]}`;
   const goalRows: Array<[string, string]> = [
     ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : PILLAR_LABEL[respondent.focusArea]],
@@ -551,13 +592,13 @@ function RespondentPlan({
             <span>→</span>
           </button>
           <div className="practiceList">
-            {plan.items.map((item, index) => {
-              const itemKey = `${index}-${item.category}-${item.practice.text}`;
+            {practicesForDisplay(plan.items).map(({ item, slotIndex }, displayIndex) => {
+              const itemKey = `${slotIndex}-${item.category}-${item.practice.text}`;
               const source = item.practice.references.join('\n') || item.practice.evidence;
               const sourceExpanded = sourceOpen === itemKey;
               return (
                 <article key={itemKey} className="practice">
-                  <span className="slot">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="slot">{String(displayIndex + 1).padStart(2, '0')}</span>
                   <div className="practiceBody">
                     <div className="practiceHead">
                       <span className="familyLabel">{item.category}</span>
@@ -614,7 +655,7 @@ function RespondentPlan({
                               key={alternative.text}
                               type="button"
                               onClick={() => {
-                                onSwapPractice(index, alternative.text);
+                                onSwapPractice(slotIndex, alternative.text);
                                 setSwapOpen(null);
                               }}
                             >
@@ -823,6 +864,7 @@ function PlanDocument({
   const challengeDetail = respondent.mainChallenges.length
     ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
     : 'Your practices are tuned mainly from your habit answers and stated focus.';
+  const displayed = practicesForDisplay(plan.items);
 
   return (
     <main className="planDoc">
@@ -872,9 +914,10 @@ function PlanDocument({
           <p>These five practices are designed around you and your current situation.</p>
           <p>They are intended to help you build small, sustainable habits that fit your confidence, goals and everyday life. You don't need to do every practice every day. Instead, use them as your daily toolkit, choosing the ones that make sense for you as you build consistency.</p>
           <p>Throughout the journey, your Circle will be alongside you — sharing experiences, encouraging one another, checking in, and taking part in some practices together.</p>
+          <p>Each practice is marked with a number that points to the research behind it, collected at the end of this plan.</p>
           <div className="sharedQuote">Small steps are easier, and often more meaningful, when they're shared.</div>
           <div className="planPracticeList">
-            {plan.items.map((item, index) => {
+            {displayed.map(({ item }, index) => {
               const n = index + 1;
               return (
                 <article
@@ -891,9 +934,9 @@ function PlanDocument({
                       <a
                         className="planFootnoteRef"
                         href={`#plan-note-${n}`}
-                        aria-label={`Evidence for practice ${n}`}
+                        aria-label={`Research for practice ${n}`}
                       >
-                        {n}
+                        [{n}]
                       </a>
                     </h3>
                     {item.practice.why && <p>{item.practice.why}</p>}
@@ -924,17 +967,18 @@ function PlanDocument({
           <p>Good Span is designed to support healthy habits and wellbeing. It isn't a substitute for medical advice, diagnosis or treatment. If you have a diagnosed health condition or concerns about making lifestyle changes, please speak with a qualified healthcare professional before starting.</p>
         </section>
 
-        <section className="planNotes">
-          <h2>Evidence</h2>
-          <p>Sources for the practices above. Each number matches the practice it supports.</p>
-          <ol>
-            {plan.items.map((item, index) => {
+        <PlanSection number="7" title="The research behind your practices">
+          <p>These notes back up the five practices above. The number after a practice matches the note below, so you can see the research that supports it.</p>
+          <ol className="planNotesList">
+            {displayed.map(({ item }, index) => {
               const n = index + 1;
               return (
                 <li key={`${item.category}-${item.practice.text}`} id={`plan-note-${n}`}>
                   <a className="planNoteBack" href={`#plan-practice-${n}`}>
-                    {n}. {item.category}
+                    <span>{n}</span>
+                    {item.practice.text}
                   </a>
+                  <p className="planNoteCategory">{item.category}</p>
                   {item.practice.evidence && <p>{item.practice.evidence}</p>}
                   {item.practice.references.length > 0 && (
                     <ul>
@@ -949,7 +993,7 @@ function PlanDocument({
               );
             })}
           </ol>
-        </section>
+        </PlanSection>
       </section>
     </main>
   );
@@ -1071,21 +1115,35 @@ function CirclesView({
   circles,
   respondentCount,
   settings,
+  movedIds,
+  onMoveMember,
+  onOpenOverview,
 }: {
   circles: Circle[];
   respondentCount: number;
   settings: MatchingSettings;
+  movedIds: Record<string, string>;
+  onMoveMember: (memberId: string, targetId: string) => void;
+  onOpenOverview: (circle: Circle, index: number) => void;
 }) {
+  const moveCount = Object.keys(movedIds).length;
   return (
     <main className="page">
       <section className="pageIntro">
         <p className="eyebrow">Auto-clustered</p>
         <h1>Suggested Circles</h1>
         <p>
-          Two hard filters first — same Span, same city — then people are spread so each Circle mixes age, gender,
-          personality, life stage, work situation and home life as widely as possible. Groups run {numberWord(settings.minCircleSize)} to{' '}
-          {numberWord(settings.maxCircleSize)} people. Where a city does not have enough people on a Span yet, the group stays small and is flagged.
+          People are grouped first by Span and city — treating nearby places within 50 km as the same city, so Cascais
+          and Caparica sit with Lisbon. A small city-and-Span group stays in one Circle so that Span can fill, instead of
+          being split by personality or other traits. Larger groups are then mixed across age, gender, personality, life
+          stage, work and home life. Groups run {numberWord(settings.minCircleSize)} to {numberWord(settings.maxCircleSize)} people.
         </p>
+        {moveCount > 0 && (
+          <div className="infoBox">
+            <strong>Circle moves active</strong>
+            <p>{moveCount} {moveCount === 1 ? 'member has' : 'members have'} been moved from the automatic grouping.</p>
+          </div>
+        )}
         <div className="statsLine">
           <Stat label="Proposed Circles" value={circles.length} />
           <Stat label="Members" value={respondentCount} />
@@ -1101,12 +1159,18 @@ function CirclesView({
               circle.needsMore ? ' · needs more' : circle.mixed ? ' · consider splitting' : ''
             }`;
             return (
-              <article key={`${circle.pillarId}-${circle.city}-${index}`} className="circle">
+              <article key={circle.id} className="circle">
                 <div className="circleHead">
                   <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
                   <span className="circleIndex">Circle {index + 1}</span>
                 </div>
-                <h3>{circle.members[0]?.location || circle.city}</h3>
+                <h3>{circle.city}</h3>
+                {(() => {
+                  const extras = satelliteCities(circle.members.map((member) => member.location), circle.city);
+                  return extras.length
+                    ? <p className="circleSatellites">Includes {joinNames(extras)}</p>
+                    : null;
+                })()}
                 <p className="circleSize" style={{ color: circle.needsMore || circle.mixed ? '#B4482E' : '#5A5F56' }}>
                   {sizeLabel}
                 </p>
@@ -1116,12 +1180,37 @@ function CirclesView({
                     <li key={member.id}>
                       <span className="circleAvatar">{initials(member.preferredName)}</span>
                       <span>
-                        <strong>{member.preferredName}</strong>
+                        <strong>
+                          {member.preferredName}
+                          {movedIds[member.id] ? <em className="movedTag">Moved</em> : null}
+                        </strong>
                         <small>{member.location || '—'} · {member.ageBand || '—'}</small>
+                        <label className="circleMove">
+                          <span>Move to</span>
+                          <select
+                            value={circle.id}
+                            onChange={(event) => onMoveMember(member.id, event.target.value)}
+                          >
+                            {circles.map((option, optionIndex) => (
+                              <option key={option.id} value={option.id}>
+                                Circle {optionIndex + 1} · {PILLAR_LABEL[option.pillarId]} · {option.city}
+                                {option.id === circle.id ? ' · current' : ''}
+                              </option>
+                            ))}
+                            <option value={nextManualCircleId(circles, circle.pillarId, circle.city)}>
+                              New Circle · {PILLAR_LABEL[circle.pillarId]} · {circle.city}
+                            </option>
+                          </select>
+                        </label>
                       </span>
                     </li>
                   ))}
                 </ul>
+                <button type="button" className="circleOverviewBtn" onClick={() => onOpenOverview(circle, index)}>
+                  <span>Download Circle Overview</span>
+                  <span>→</span>
+                </button>
+                <p className="circleOverviewHint">For the Span Lead — member summaries and shared practices.</p>
               </article>
             );
           })}
@@ -1129,6 +1218,253 @@ function CirclesView({
       )}
     </main>
   );
+}
+
+function CircleOverview({
+  circle,
+  index,
+  plans,
+  onBack,
+}: {
+  circle: Circle;
+  index: number;
+  plans: Map<string, Plan>;
+  onBack: () => void;
+}) {
+  const city = circle.city;
+  const extras = satelliteCities(circle.members.map((member) => member.location), city);
+  const spanLabel = PILLAR_LABEL[circle.pillarId];
+  const shared = sharedCirclePractices(circle.members, plans);
+
+  return (
+    <main className="planDoc circleDoc">
+      <div className="planToolbar" data-noprint>
+        <button onClick={onBack}>← Back to Circles</button>
+        <div>
+          <span>Circle {index + 1} · {spanLabel} · {city}</span>
+          <button className="primary" onClick={() => window.print()}>Download Overview</button>
+        </div>
+      </div>
+
+      <section className="planHero" data-planhero>
+        <div>
+          <div className="planHeroTop">
+            <strong>The Good Span</strong>
+            <div>
+              <span>{spanLabel} Span</span>
+              <span>Circle {index + 1} · {circle.members.length} {circle.members.length === 1 ? 'member' : 'members'}</span>
+            </div>
+          </div>
+          <div className="planHeroRule" />
+          <h1>Circle Overview</h1>
+          <p className="hello">For the Span Lead</p>
+          <p>A briefing on this Circle so you can see who is in the group, what they are working with, and where their practices overlap.</p>
+          <div className="planHeroMeta">
+            <Meta label="Circle" value={`${index + 1} · ${city}`} />
+            <Meta label="Span" value={spanLabel} />
+            <Meta label="Members" value={String(circle.members.length)} />
+          </div>
+        </div>
+      </section>
+
+      <section className="planBody" data-planbody>
+        <PlanSection number="1" title="This Circle">
+          <p>
+            {circle.members.length === 1
+              ? `This ${spanLabel} Circle in ${city} currently has one member.`
+              : `This ${spanLabel} Circle in ${city} has ${numberWord(circle.members.length)} members.`}
+            {circle.needsMore ? ' It is flagged as needing more people before it feels complete.' : ''}
+            {circle.mixed ? ' It is large enough that you may want to consider splitting it.' : ''}
+          </p>
+          {extras.length > 0 && <p>This city cluster also includes {joinNames(extras)}.</p>}
+          <p>The members are {joinNames(circle.members.map((member) => member.preferredName || 'Unnamed'))}.</p>
+        </PlanSection>
+
+        <PlanSection number="2" title="Shared and similar practices">
+          {shared.identical.length === 0 && shared.similar.length === 0 ? (
+            <p>Members in this Circle do not currently share identical or similar practices. Each person has a distinct set.</p>
+          ) : (
+            <>
+              <p>Use these overlaps as easy group starting points — people can compare notes on the same or closely related practices.</p>
+              {shared.identical.length > 0 && (
+                <div className="circleShareBlock">
+                  <h3>Identical practices</h3>
+                  <ul>
+                    {shared.identical.map((entry) => (
+                      <li key={entry.text}>
+                        <strong>{entry.text}</strong>
+                        <span>{entry.category} · {joinNames(entry.names)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {shared.similar.length > 0 && (
+                <div className="circleShareBlock">
+                  <h3>Similar practices</h3>
+                  <p>Same category, different wording — close enough to discuss together.</p>
+                  {shared.similar.map((entry) => (
+                    <div key={entry.category} className="circleSimilarGroup">
+                      <strong>{entry.category}</strong>
+                      <ul>
+                        {entry.members.map((item) => (
+                          <li key={`${item.name}-${item.text}`}>
+                            <span>{item.name}</span>
+                            {item.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </PlanSection>
+
+        <PlanSection number="3" title="Members">
+          <p>A snapshot of each person: who they are, what their habits and challenges look like, what gets in the way, and the five practices on their plan.</p>
+          <div className="circleMemberDocs">
+            {circle.members.map((member, memberIndex) => {
+              const plan = plans.get(member.id);
+              const practices = plan ? practicesForDisplay(plan.items) : [];
+              return (
+                <article key={member.id} className="circleMemberDoc">
+                  <div className="circleMemberDocHead">
+                    <span>{String(memberIndex + 1).padStart(2, '0')}</span>
+                    <div>
+                      <h3>{member.preferredName || 'Unnamed'}</h3>
+                      <p>
+                        {member.ageBand || 'Age not given'}
+                        {' · '}
+                        {title(member.personality)}
+                        {plan ? ` · ${title(plan.levelId)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Life and work</dt>
+                      <dd>{lifeWorkSummary(member)}</dd>
+                    </div>
+                    <div>
+                      <dt>Habits</dt>
+                      <dd>{habitSummary(member)}</dd>
+                    </div>
+                    <div>
+                      <dt>Challenges</dt>
+                      <dd>{joinNames(member.mainChallenges) || 'None named.'}</dd>
+                    </div>
+                    <div>
+                      <dt>What gets in the way</dt>
+                      <dd>{joinNames(member.barriers) || 'Nothing recorded.'}</dd>
+                    </div>
+                  </dl>
+                  <div className="circleMemberPractices">
+                    <strong>Recommended practices</strong>
+                    {practices.length === 0 ? (
+                      <p>No plan generated for this member.</p>
+                    ) : (
+                      <ol>
+                        {practices.map(({ item }) => (
+                          <li key={`${item.category}-${item.practice.text}`}>
+                            <span>{item.category}{item.startWithThis ? ` · ${START_FLAG_LABEL}` : ''}</span>
+                            {item.practice.text}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </PlanSection>
+      </section>
+    </main>
+  );
+}
+
+function nextManualCircleId(circles: Circle[], pillarId: Pillar, city: string): string {
+  let n = 1;
+  let id = newCircleId(pillarId, city, String(n));
+  while (circles.some((circle) => circle.id === id)) {
+    n += 1;
+    id = newCircleId(pillarId, city, String(n));
+  }
+  return id;
+}
+
+function joinNames(items: string[]): string {
+  const clean = items.map((item) => item.trim()).filter(Boolean);
+  if (!clean.length) return '';
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+  return `${clean.slice(0, -1).join(', ')}, and ${clean[clean.length - 1]}`;
+}
+
+function lifeWorkSummary(member: Respondent): string {
+  const parts = [member.workStatus, member.homeLife, member.lifeStage].filter(Boolean);
+  const sentences = [];
+  if (parts.length) sentences.push(`${parts.join('. ')}.`);
+  if (member.location) sentences.push(`Lives in ${member.location}.`);
+  sentences.push(`Has ${labelForTime(member.timePerDay).toLowerCase()} available for practices.`);
+  return sentences.join(' ');
+}
+
+function habitSummary(member: Respondent): string {
+  const rows = HABIT_KEYS.map((key) => ({
+    label: HABIT_LABEL[key].toLowerCase(),
+    weakness: normalizedHabitScore(member, key),
+    answer: habitAnswerLabel(member, key),
+  }));
+  const grow = rows.filter((row) => row.weakness >= 0.5).sort((a, b) => b.weakness - a.weakness);
+  const strong = rows.filter((row) => row.weakness <= 0.25);
+  const parts = [];
+  if (grow.length) {
+    parts.push(`Most room to grow: ${grow.map((row) => `${row.label} (${row.answer})`).join('; ')}.`);
+  }
+  if (strong.length) {
+    parts.push(`Already stronger: ${strong.map((row) => `${row.label} (${row.answer})`).join('; ')}.`);
+  }
+  if (!parts.length) {
+    return 'Habit answers sit in the middle — no standout weaknesses or strengths from the check-in.';
+  }
+  return parts.join(' ');
+}
+
+function sharedCirclePractices(members: Respondent[], plans: Map<string, Plan>) {
+  const byText = new Map<string, { text: string; category: string; names: string[] }>();
+  const byCategory = new Map<string, { name: string; text: string }[]>();
+
+  members.forEach((member) => {
+    const plan = plans.get(member.id);
+    const name = member.preferredName || 'Unnamed';
+    plan?.items.forEach((item) => {
+      const key = item.practice.text.trim().toLowerCase();
+      const existing = byText.get(key);
+      if (existing) {
+        if (!existing.names.includes(name)) existing.names.push(name);
+      } else {
+        byText.set(key, { text: item.practice.text, category: item.category, names: [name] });
+      }
+      const bucket = byCategory.get(item.category) ?? [];
+      bucket.push({ name, text: item.practice.text });
+      byCategory.set(item.category, bucket);
+    });
+  });
+
+  const identical = [...byText.values()].filter((entry) => entry.names.length >= 2);
+  const similar = [...byCategory.entries()]
+    .map(([category, entries]) => {
+      const uniqueTexts = new Set(entries.map((entry) => entry.text.trim().toLowerCase()));
+      const uniqueNames = new Set(entries.map((entry) => entry.name));
+      return { category, members: entries, uniqueTexts, uniqueNames };
+    })
+    .filter((entry) => entry.uniqueNames.size >= 2 && entry.uniqueTexts.size >= 2)
+    .map(({ category, members: group }) => ({ category, members: group }));
+
+  return { identical, similar };
 }
 
 function PracticeBank({
@@ -1583,8 +1919,8 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Circle formation</h2>
-          <p>People are first grouped by Span and city. A person can only be placed in a Circle with others from the same Span and city.</p>
-          <p>Within that group, we try to make each Circle as mixed as possible. Each person is placed in the Circle where they are least similar to the people already in it.</p>
+          <p>People are first grouped by Span and city. Nearby places within 50 km count as the same city — Cascais and Caparica join Lisbon.</p>
+          <p>If only a few people in that city are on the same Span, they stay in one Circle so the Span can fill. We only split into another same-Span Circle when the group is larger than the maximum size. Personality and other traits are used to mix those larger splits, not to create extra small Circles.</p>
           <button
             type="button"
             className="danger"
@@ -2026,7 +2362,7 @@ function StartWithThisPreview({
             ))}
           </select>
           <ol className="startPreviewList">
-            {plan.items.map((item, index) => (
+            {practicesForDisplay(plan.items).map(({ item }, index) => (
               <li key={`${item.category}-${index}`} className={item.startWithThis ? 'flagged' : undefined}>
                 <span className="slot">{String(index + 1).padStart(2, '0')}</span>
                 <div>
@@ -2162,15 +2498,20 @@ function overrideSummary(
   swaps: Record<string, string>,
   levelOverrides: Record<string, Level>,
   pillarOverrides: Record<string, Pillar>,
+  circleOverrides: Record<string, string>,
 ) {
   const swapCount = Object.keys(swaps).length;
   const levelCount = Object.keys(levelOverrides).length;
   const pillarCount = Object.keys(pillarOverrides).length;
-  if (swapCount + levelCount + pillarCount === 0) return 'No manual swaps, intensity overrides or Span overrides yet.';
+  const circleCount = Object.keys(circleOverrides).length;
+  if (swapCount + levelCount + pillarCount + circleCount === 0) {
+    return 'No manual swaps, intensity overrides, Span overrides or Circle moves yet.';
+  }
   const parts = [
     `${swapCount} practice swap${swapCount === 1 ? '' : 's'}`,
     `${levelCount} intensity override${levelCount === 1 ? '' : 's'}`,
     `${pillarCount} Span override${pillarCount === 1 ? '' : 's'}`,
+    `${circleCount} Circle move${circleCount === 1 ? '' : 's'}`,
   ];
   return `${parts.join(', ')} active.`;
 }

@@ -5,13 +5,17 @@ import {
   DEFAULT_SETTINGS,
   PRACTICES,
   SOCIAL_CATEGORIES,
+  applyCircleOverrides,
   autoCluster,
   buildDiverseGroups,
   buildPlan,
   cloneSettings,
   computeRecommendation,
   flagStartWithThis,
+  newCircleId,
+  practicesForDisplay,
 } from './matching';
+import { clusterCity } from './cities';
 import { generateSampleRespondents } from './sampleData';
 
 function respondent(overrides: Partial<Respondent> = {}): Respondent {
@@ -389,6 +393,23 @@ describe('C5 start with this', () => {
     expect(none.items).toHaveLength(5);
   });
 
+  it('lists recommended starting points first for display without changing slot indexes', () => {
+    const items = [
+      item('Wind Down'),
+      { ...item('Circadian Alignment'), startWithThis: true },
+      item('Caffeine Timing'),
+      { ...item('Social Connection'), startWithThis: true },
+    ];
+    const ordered = practicesForDisplay(items);
+    expect(ordered.map((entry) => entry.item.category)).toEqual([
+      'Circadian Alignment',
+      'Social Connection',
+      'Wind Down',
+      'Caffeine Timing',
+    ]);
+    expect(ordered.map((entry) => entry.slotIndex)).toEqual([1, 3, 0, 2]);
+  });
+
   it('rebuilds practices from an admin pillar override without changing scores', () => {
     const person = respondent({ focusArea: 'mind' });
     const matched = buildPlan(person);
@@ -428,6 +449,52 @@ describe('E circle diversity', () => {
     });
   });
 
+  it('keeps a small same-Span city group in one Circle instead of splitting on traits', () => {
+    const people = Array.from({ length: 8 }, (_, index) =>
+      respondent({
+        id: `small-${index}`,
+        preferredName: `Small ${index}`,
+        location: 'Lisbon, Portugal',
+        focusArea: 'mind',
+        personality: (['introvert', 'ambivert', 'extrovert'] as const)[index % 3],
+      }),
+    );
+    const groups = buildDiverseGroups(people, DEFAULT_SETTINGS);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].members).toHaveLength(8);
+    expect(groups[0].mixed).toBe(true);
+  });
+
+  it('clusters Cascais and Caparica with Lisbon, then groups by Span', () => {
+    const people = [
+      respondent({ id: 'lis', preferredName: 'Lisbon person', location: 'Lisbon, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'cas', preferredName: 'Cascais person', location: 'Cascais, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'cap', preferredName: 'Caparica person', location: 'Costa da Caparica, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'por', preferredName: 'Porto person', location: 'Porto, Portugal', focusArea: 'mind' }),
+    ];
+    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
+    const circles = autoCluster(people, plans, DEFAULT_SETTINGS);
+    const lisbon = circles.find((circle) => circle.city.startsWith('Lisbon'));
+    const porto = circles.find((circle) => circle.city.startsWith('Porto'));
+    expect(lisbon?.members.map((member) => member.id).sort()).toEqual(['cap', 'cas', 'lis']);
+    expect(porto?.members.map((member) => member.id)).toEqual(['por']);
+  });
+
+  it('applies an admin move into a new Circle without losing the member', () => {
+    const people = [
+      respondent({ id: 'a', preferredName: 'A', location: 'Lisbon, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'b', preferredName: 'B', location: 'Lisbon, Portugal', focusArea: 'mind' }),
+    ];
+    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
+    const auto = autoCluster(people, plans, DEFAULT_SETTINGS);
+    expect(auto).toHaveLength(1);
+    const target = newCircleId('mind', auto[0].city, 'group');
+    const moved = applyCircleOverrides(auto, { a: target }, DEFAULT_SETTINGS);
+    expect(moved).toHaveLength(2);
+    expect(moved.find((circle) => circle.id === target)?.members.map((member) => member.id)).toEqual(['a']);
+    expect(moved.find((circle) => circle.id === auto[0].id)?.members.map((member) => member.id)).toEqual(['b']);
+  });
+
   it('reuses the same clustering pass for per-person Circle lookup', () => {
     const people = generateSampleRespondents();
     const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS)]));
@@ -436,5 +503,14 @@ describe('E circle diversity', () => {
     const match = circles.find((circle) => circle.members.some((member) => member.id === person.id));
     expect(match).toBeTruthy();
     expect(match?.members.some((member) => member.id === person.id)).toBe(true);
+  });
+});
+
+describe('clusterCity', () => {
+  it('maps Cascais and Caparica into the Lisbon 50 km cluster', () => {
+    expect(clusterCity('Lisbon, Portugal')).toBe(clusterCity('Cascais, Portugal'));
+    expect(clusterCity('Costa da Caparica, Portugal')).toBe(clusterCity('Lisbon, Portugal'));
+    expect(clusterCity('Caparica')).toBe(clusterCity('Lisbon'));
+    expect(clusterCity('Porto, Portugal')).not.toBe(clusterCity('Lisbon, Portugal'));
   });
 });
