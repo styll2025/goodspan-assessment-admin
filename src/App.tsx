@@ -1265,6 +1265,9 @@ function CircleOverview({
           <div className="planHeroRule" />
           <h1>Circle Overview</h1>
           <p>A briefing on this Circle so you can see who is in the group, what they are working with, and where their practices overlap.</p>
+          <p className="circleConfidential">
+            This document contains member information belonging to The Good Span. Please keep all information contained herein strictly confidential.
+          </p>
           <div className="planHeroMeta">
             <Meta label="Circle" value={`${index + 1} · ${city}`} />
             <Meta label="Span" value={spanLabel} />
