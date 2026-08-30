@@ -1289,49 +1289,7 @@ function CircleOverview({
           <p>The members are {joinNames(circle.members.map((member) => member.preferredName || 'Unnamed'))}.</p>
         </PlanSection>
 
-        <PlanSection number="2" title="Shared and similar practices">
-          {shared.identical.length === 0 && shared.similar.length === 0 ? (
-            <p>Members in this Circle do not currently share identical or similar practices. Each person has a distinct set.</p>
-          ) : (
-            <>
-              <p>Use these overlaps as easy group starting points — people can compare notes on the same or closely related practices.</p>
-              {shared.identical.length > 0 && (
-                <div className="circleShareBlock">
-                  <h3>Identical practices</h3>
-                  <ul>
-                    {shared.identical.map((entry) => (
-                      <li key={entry.text}>
-                        <strong>{entry.text}</strong>
-                        <span>{entry.category} · {joinNames(entry.names)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {shared.similar.length > 0 && (
-                <div className="circleShareBlock">
-                  <h3>Similar practices</h3>
-                  <p>Same category, different wording — close enough to discuss together.</p>
-                  {shared.similar.map((entry) => (
-                    <div key={entry.category} className="circleSimilarGroup">
-                      <strong>{entry.category}</strong>
-                      <ul>
-                        {entry.members.map((item) => (
-                          <li key={`${item.name}-${item.text}`}>
-                            <span>{item.name}</span>
-                            {item.text}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </PlanSection>
-
-        <PlanSection number="3" title="Members">
+        <PlanSection number="2" title="Members">
           <p>A snapshot of each person: who they are, what their habits and challenges look like, what gets in the way, and the five practices on their plan.</p>
           <div className="circleMemberDocs">
             {circle.members.map((member, memberIndex) => {
@@ -1347,7 +1305,7 @@ function CircleOverview({
                         {member.ageBand || 'Age not given'}
                         {' · '}
                         {title(member.personality)}
-                        {plan ? ` · ${title(plan.levelId)}` : ''}
+                        {plan ? ` · ${title(plan.levelId)} level` : ''}
                       </p>
                     </div>
                   </div>
@@ -1388,6 +1346,26 @@ function CircleOverview({
               );
             })}
           </div>
+        </PlanSection>
+
+        <PlanSection number="3" title="Shared practices">
+          {shared.length === 0 ? (
+            <p>Members in this Circle do not currently share the same practices. Each person has a distinct set.</p>
+          ) : (
+            <>
+              <p>Use these overlaps as easy group starting points — people can compare notes on the same practice.</p>
+              <div className="circleShareBlock">
+                <ul>
+                  {shared.map((entry) => (
+                    <li key={entry.text}>
+                      <strong>{entry.text}</strong>
+                      <span>{entry.category} · {joinNames(entry.names)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
         </PlanSection>
       </section>
     </main>
@@ -1444,7 +1422,6 @@ function habitSummary(member: Respondent): string {
 
 function sharedCirclePractices(members: Respondent[], plans: Map<string, Plan>) {
   const byText = new Map<string, { text: string; category: string; names: string[] }>();
-  const byCategory = new Map<string, { name: string; text: string }[]>();
 
   members.forEach((member) => {
     const plan = plans.get(member.id);
@@ -1457,23 +1434,10 @@ function sharedCirclePractices(members: Respondent[], plans: Map<string, Plan>) 
       } else {
         byText.set(key, { text: item.practice.text, category: item.category, names: [name] });
       }
-      const bucket = byCategory.get(item.category) ?? [];
-      bucket.push({ name, text: item.practice.text });
-      byCategory.set(item.category, bucket);
     });
   });
 
-  const identical = [...byText.values()].filter((entry) => entry.names.length >= 2);
-  const similar = [...byCategory.entries()]
-    .map(([category, entries]) => {
-      const uniqueTexts = new Set(entries.map((entry) => entry.text.trim().toLowerCase()));
-      const uniqueNames = new Set(entries.map((entry) => entry.name));
-      return { category, members: entries, uniqueTexts, uniqueNames };
-    })
-    .filter((entry) => entry.uniqueNames.size >= 2 && entry.uniqueTexts.size >= 2)
-    .map(({ category, members: group }) => ({ category, members: group }));
-
-  return { identical, similar };
+  return [...byText.values()].filter((entry) => entry.names.length >= 2);
 }
 
 function bankCategories(pillar: Pillar | 'all'): string[] {

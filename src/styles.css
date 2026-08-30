@@ -2878,8 +2878,7 @@ summary {
 }
 
 .circleShareBlock h3,
-.circleMemberPractices > strong,
-.circleSimilarGroup > strong {
+.circleMemberPractices > strong {
   display: block;
   font-size: 15px;
   font-weight: 800;
@@ -2894,7 +2893,6 @@ summary {
 }
 
 .circleShareBlock ul,
-.circleSimilarGroup ul,
 .circleMemberPractices ol {
   list-style: none;
   margin: 0;
@@ -2902,7 +2900,6 @@ summary {
 }
 
 .circleShareBlock li,
-.circleSimilarGroup li,
 .circleMemberPractices li {
   border-top: 1px solid #dfddd3;
   padding: 10px 0;
@@ -2918,8 +2915,7 @@ summary {
 }
 
 .circleShareBlock li span,
-.circleMemberPractices li span,
-.circleSimilarGroup li span {
+.circleMemberPractices li span {
   display: block;
   color: #8a8f86;
   font-size: 11px;
@@ -2927,10 +2923,6 @@ summary {
   letter-spacing: 0.06em;
   margin-bottom: 4px;
   text-transform: uppercase;
-}
-
-.circleSimilarGroup {
-  margin-top: 16px;
 }
 
 .circleMemberDocs {
@@ -3115,8 +3107,7 @@ summary {
 
   .planPractice,
   .circleMemberDoc,
-  .circleShareBlock,
-  .circleSimilarGroup {
+  .circleShareBlock {
     break-inside: avoid;
   }
 
