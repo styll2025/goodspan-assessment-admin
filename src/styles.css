@@ -702,8 +702,8 @@ p {
 }
 
 .reasonTag.start {
-  background: #d9eaf7;
-  color: #245a7a;
+  background: #1b3327;
+  color: #aece36;
 }
 
 .evidenceRow {
@@ -2764,6 +2764,23 @@ summary {
 .planPractice > div {
   min-width: 0;
   padding: 16px 20px 18px;
+}
+
+.planPracticeMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.planPracticeMeta .eyebrow {
+  margin: 0;
+}
+
+.planPractice .reasonTag.start {
+  margin-top: 0;
+  padding: 5px 9px;
+  font-size: 10px;
 }
 
 .planPractice h3 {

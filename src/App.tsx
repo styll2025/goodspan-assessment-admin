@@ -935,7 +935,10 @@ function PlanDocument({
                 >
                   <span>{n}</span>
                   <div>
-                    <p className="eyebrow">{item.category}{item.startWithThis ? ` · ${START_FLAG_LABEL}` : ''}</p>
+                    <div className="planPracticeMeta">
+                      <p className="eyebrow">{item.category}</p>
+                      {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
+                    </div>
                     <h3>
                       {item.practice.text}
                       <a
