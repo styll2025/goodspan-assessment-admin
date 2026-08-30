@@ -71,6 +71,8 @@ const HABIT_KEYS: HabitKey[] = [
 ];
 const START_FLAG_LABEL = 'Recommended starting point';
 const FOUNDING_SPAN_LABEL = 'Founding Span';
+const FOUNDING_SPAN_START = 'starting 14 Sept 2026';
+const FOUNDING_SPAN_NAMED = `${FOUNDING_SPAN_LABEL} · ${FOUNDING_SPAN_START}`;
 
 type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
 type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
@@ -567,7 +569,7 @@ function RespondentPlan({
           <p className="eyebrow light">Recommended Span</p>
           <div className="spanTitle">
             <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
-            <span>{FOUNDING_SPAN_LABEL} · {title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
+            <span>{FOUNDING_SPAN_NAMED} · {title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
           </div>
         </div>
         <div className="levelOverride">
@@ -889,7 +891,7 @@ function PlanDocument({
           <div className="planHeroTop">
             <strong>The Good Span</strong>
             <div>
-              <span>{PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_LABEL}</span>
+              <span>{PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_NAMED}</span>
               <span>{title(plan.levelId)} · 30 days</span>
             </div>
           </div>
@@ -899,8 +901,8 @@ function PlanDocument({
           <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
           <div className="planHeroMeta">
             <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
-            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)}`} />
-            <Meta label="Starts" value="14 September" />
+            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)} · ${FOUNDING_SPAN_START}`} />
+            <Meta label="Starts" value="14 Sept 2026" />
           </div>
         </div>
       </section>
@@ -1144,7 +1146,7 @@ function CirclesView({
         <p className="eyebrow">Auto-clustered</p>
         <h1>Suggested Circles</h1>
         <p>
-          These Circles belong to the {FOUNDING_SPAN_LABEL}. People are grouped first by Span and city — treating nearby
+          These Circles belong to the {FOUNDING_SPAN_LABEL}, {FOUNDING_SPAN_START}. People are grouped first by Span and city — treating nearby
           places within 50 km as the same city, so Cascais and Caparica sit with Lisbon. A small city-and-Span group stays
           in one Circle so that Span can fill, instead of being split by personality or other traits. Larger groups are
           then mixed across age, gender, personality, life stage, work and home life. Groups run{' '}
@@ -1174,7 +1176,7 @@ function CirclesView({
               <article key={circle.id} className="circle">
                 <div className="circleHead">
                   <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
-                  <span className="circleIndex">{FOUNDING_SPAN_LABEL} · Circle {index + 1}</span>
+                  <span className="circleIndex">{FOUNDING_SPAN_NAMED} · Circle {index + 1}</span>
                 </div>
                 <h3>{circle.city}</h3>
                 {(() => {
@@ -1263,7 +1265,7 @@ function CircleOverview({
           <div className="planHeroTop">
             <strong>The Good Span</strong>
             <div>
-              <span>{spanLabel} · {FOUNDING_SPAN_LABEL}</span>
+              <span>{spanLabel} · {FOUNDING_SPAN_NAMED}</span>
               <span>Circle {index + 1} · {circle.members.length} {circle.members.length === 1 ? 'member' : 'members'}</span>
             </div>
           </div>
@@ -1275,7 +1277,7 @@ function CircleOverview({
           </p>
           <div className="planHeroMeta">
             <Meta label="Circle" value={`${index + 1} · ${city}`} />
-            <Meta label={FOUNDING_SPAN_LABEL} value={spanLabel} />
+            <Meta label={FOUNDING_SPAN_LABEL} value={`${spanLabel} · ${FOUNDING_SPAN_START}`} />
             <Meta label="Members" value={String(circle.members.length)} />
           </div>
         </div>
