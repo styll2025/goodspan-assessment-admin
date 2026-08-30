@@ -70,6 +70,7 @@ const HABIT_KEYS: HabitKey[] = [
   'socialConnection',
 ];
 const START_FLAG_LABEL = 'Recommended starting point';
+const FOUNDING_SPAN_LABEL = 'Founding Span';
 
 type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
 type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
@@ -566,7 +567,7 @@ function RespondentPlan({
           <p className="eyebrow light">Recommended Span</p>
           <div className="spanTitle">
             <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
-            <span>{title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
+            <span>{FOUNDING_SPAN_LABEL} · {title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
           </div>
         </div>
         <div className="levelOverride">
@@ -866,8 +867,8 @@ function PlanDocument({
   const firstName = respondent.preferredName.split(/\s+/)[0] || 'there';
   const spanWhy =
     plan.overridden
-      ? `Your recommended longevity pillar for this Span is ${PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
-      : `Your recommended longevity pillar for this Span is ${PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
+      ? `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
+      : `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
   const challengeDetail = respondent.mainChallenges.length
     ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
     : 'Your practices are tuned mainly from your habit answers and stated focus.';
@@ -888,7 +889,7 @@ function PlanDocument({
           <div className="planHeroTop">
             <strong>The Good Span</strong>
             <div>
-              <span>{PILLAR_LABEL[plan.pillarId]} Span</span>
+              <span>{PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_LABEL}</span>
               <span>{title(plan.levelId)} · 30 days</span>
             </div>
           </div>
@@ -898,7 +899,7 @@ function PlanDocument({
           <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
           <div className="planHeroMeta">
             <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
-            <Meta label="Span" value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)}`} />
+            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)}`} />
             <Meta label="Starts" value="14 September" />
           </div>
         </div>
@@ -962,7 +963,7 @@ function PlanDocument({
         </PlanSection>
 
         <PlanSection number="5" title="What happens next">
-          <p>Your first Span is one step in your broader GoodSpan journey.</p>
+          <p>Your {FOUNDING_SPAN_LABEL} is one step in your broader GoodSpan journey.</p>
           <p>We'll get started on the 14th of September.</p>
           <p>Once your Span begins, your five personalised practices will guide your journey. As you go, you can adjust them and we'll continue tailoring them based on your feedback.</p>
           <p>You won't do it alone. Soon, we'll introduce you to your Span Coach and Circle, a small group of people taking the same journey. You'll encourage one another, share experiences and take part in activities throughout the month.</p>
@@ -1143,10 +1144,11 @@ function CirclesView({
         <p className="eyebrow">Auto-clustered</p>
         <h1>Suggested Circles</h1>
         <p>
-          People are grouped first by Span and city — treating nearby places within 50 km as the same city, so Cascais
-          and Caparica sit with Lisbon. A small city-and-Span group stays in one Circle so that Span can fill, instead of
-          being split by personality or other traits. Larger groups are then mixed across age, gender, personality, life
-          stage, work and home life. Groups run {numberWord(settings.minCircleSize)} to {numberWord(settings.maxCircleSize)} people.
+          These Circles belong to the {FOUNDING_SPAN_LABEL}. People are grouped first by Span and city — treating nearby
+          places within 50 km as the same city, so Cascais and Caparica sit with Lisbon. A small city-and-Span group stays
+          in one Circle so that Span can fill, instead of being split by personality or other traits. Larger groups are
+          then mixed across age, gender, personality, life stage, work and home life. Groups run{' '}
+          {numberWord(settings.minCircleSize)} to {numberWord(settings.maxCircleSize)} people.
         </p>
         {moveCount > 0 && (
           <div className="infoBox">
@@ -1172,7 +1174,7 @@ function CirclesView({
               <article key={circle.id} className="circle">
                 <div className="circleHead">
                   <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
-                  <span className="circleIndex">Circle {index + 1}</span>
+                  <span className="circleIndex">{FOUNDING_SPAN_LABEL} · Circle {index + 1}</span>
                 </div>
                 <h3>{circle.city}</h3>
                 {(() => {
@@ -1261,7 +1263,7 @@ function CircleOverview({
           <div className="planHeroTop">
             <strong>The Good Span</strong>
             <div>
-              <span>{spanLabel} Span</span>
+              <span>{spanLabel} · {FOUNDING_SPAN_LABEL}</span>
               <span>Circle {index + 1} · {circle.members.length} {circle.members.length === 1 ? 'member' : 'members'}</span>
             </div>
           </div>
@@ -1273,7 +1275,7 @@ function CircleOverview({
           </p>
           <div className="planHeroMeta">
             <Meta label="Circle" value={`${index + 1} · ${city}`} />
-            <Meta label="Span" value={spanLabel} />
+            <Meta label={FOUNDING_SPAN_LABEL} value={spanLabel} />
             <Meta label="Members" value={String(circle.members.length)} />
           </div>
         </div>
@@ -1283,8 +1285,8 @@ function CircleOverview({
         <PlanSection number="1" title="This Circle">
           <p>
             {circle.members.length === 1
-              ? `This ${spanLabel} Circle in ${city} currently has one member.`
-              : `This ${spanLabel} Circle in ${city} has ${numberWord(circle.members.length)} members.`}
+              ? `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} in ${city} and currently has one member.`
+              : `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} in ${city} and has ${numberWord(circle.members.length)} members.`}
             {circle.needsMore ? ' It is flagged as needing more people before it feels complete.' : ''}
             {circle.mixed ? ' It is large enough that you may want to consider splitting it.' : ''}
           </p>
