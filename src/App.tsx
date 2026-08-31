@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_SETTINGS,
@@ -73,6 +73,8 @@ const START_FLAG_LABEL = 'Recommended starting point';
 const FOUNDING_SPAN_LABEL = 'Founding Span';
 const FOUNDING_SPAN_START = 'starting 14 Sept 2026';
 const FOUNDING_SPAN_NAMED = `${FOUNDING_SPAN_LABEL} · ${FOUNDING_SPAN_START}`;
+const FOUNDING_SPAN_DATE_SHORT = '14 Sep';
+const ADMIN_DOCUMENT_TITLE = 'GoodSpan Practice Matcher Admin';
 
 type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
 type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
@@ -857,6 +859,16 @@ function RespondentPlan({
   );
 }
 
+function useDownloadTitle(title: string) {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return () => {
+      document.title = previous || ADMIN_DOCUMENT_TITLE;
+    };
+  }, [title]);
+}
+
 function PlanDocument({
   respondent,
   plan,
@@ -875,6 +887,8 @@ function PlanDocument({
     ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
     : 'Your practices are tuned mainly from your habit answers and stated focus.';
   const displayed = practicesForDisplay(plan.items);
+  const memberName = (respondent.preferredName || 'Unnamed').trim();
+  useDownloadTitle(`GoodSpan Personalised Plan ${memberName}`);
 
   return (
     <main className="planDoc">
@@ -1249,6 +1263,7 @@ function CircleOverview({
   const extras = satelliteCities(circle.members.map((member) => member.location), city);
   const spanLabel = PILLAR_LABEL[circle.pillarId];
   const shared = sharedCirclePractices(circle.members, plans);
+  useDownloadTitle(`GoodSpan Founding Span ${FOUNDING_SPAN_DATE_SHORT} - Good${spanLabel} - Circle ${index + 1} Overview`);
 
   return (
     <main className="planDoc circleDoc">
