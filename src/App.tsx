@@ -895,7 +895,7 @@ function PlanDocument({
       <div className="planToolbar" data-noprint>
         <button onClick={onBack}>← Back to member</button>
         <div>
-          <span>{respondent.preferredName || 'Unnamed'} · {PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
+          <span>{respondent.preferredName || 'Unnamed'} · {PILLAR_LABEL[plan.pillarId]}</span>
           <button className="primary" onClick={() => window.print()}>Download Plan</button>
         </div>
       </div>
@@ -906,7 +906,7 @@ function PlanDocument({
             <strong>The Good Span</strong>
             <div>
               <span>{PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_NAMED}</span>
-              <span>{title(plan.levelId)} · 30 days</span>
+              <span>30 days</span>
             </div>
           </div>
           <div className="planHeroRule" />
@@ -915,7 +915,7 @@ function PlanDocument({
           <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
           <div className="planHeroMeta">
             <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
-            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${title(plan.levelId)} · ${FOUNDING_SPAN_START}`} />
+            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${FOUNDING_SPAN_START}`} />
             <Meta label="Starts" value="14 Sept 2026" />
           </div>
         </div>
