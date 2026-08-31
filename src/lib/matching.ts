@@ -27,6 +27,13 @@ export const PILLAR_LABEL: Record<Pillar, string> = {
   mind: 'Mind',
 };
 
+export const GOOD_PILLAR_LABEL: Record<Pillar, string> = {
+  sleep: 'GoodSleep',
+  eat: 'GoodEat',
+  move: 'GoodMove',
+  mind: 'GoodMind',
+};
+
 export const PILLAR_TINT: Record<Pillar, { bg: string; fg: string }> = {
   sleep: { bg: '#E7EEF8', fg: '#2C4A6B' },
   eat: { bg: '#F3ECDD', fg: '#7A5A20' },

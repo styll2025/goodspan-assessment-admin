@@ -3120,6 +3120,11 @@ summary {
     padding: 26mm 18mm !important;
   }
 
+  .planDivider,
+  .embeddedPlan {
+    break-before: page;
+  }
+
   .planBody {
     max-width: none !important;
     padding: 16mm 18mm !important;

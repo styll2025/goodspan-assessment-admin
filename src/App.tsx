@@ -7,6 +7,7 @@ import {
   HABIT_CATEGORY_MAP,
   CHALLENGE_KEYWORDS,
   PILLAR_BOOST_MAP,
+  GOOD_PILLAR_LABEL,
   PILLAR_LABEL,
   PILLAR_TINT,
   PILLARS,
@@ -394,7 +395,7 @@ export default function App() {
                   </span>
                   <span>{respondent.location || '-'} · {respondent.ageBand || '-'}</span>
                   <span className="personTags">
-                    {plan && <Pill label={PILLAR_LABEL[plan.pillarId]} tone={plan.pillarId} />}
+                    {plan && <Pill label={GOOD_PILLAR_LABEL[plan.pillarId]} tone={plan.pillarId} />}
                     {plan && <small>{plan.levelId}</small>}
                   </span>
                 </button>
@@ -536,9 +537,9 @@ function RespondentPlan({
   const pillarTint = PILLAR_TINT[plan.pillarId];
   const circleCaption = circleMembers.length
     ? `${circleMembers.length} ${circleMembers.length === 1 ? 'other' : 'others'} in their proposed Circle · ${circle?.city ?? respondent.location}`
-    : `No circle yet — needs more people in this city on ${PILLAR_LABEL[plan.pillarId]}`;
+    : `No circle yet — needs more people in this city on ${GOOD_PILLAR_LABEL[plan.pillarId]}`;
   const goalRows: Array<[string, string]> = [
-    ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : PILLAR_LABEL[respondent.focusArea]],
+    ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : GOOD_PILLAR_LABEL[respondent.focusArea]],
     ['Time available', labelForTime(respondent.timePerDay)],
     ['Challenges', respondent.mainChallenges.length ? respondent.mainChallenges.join(', ') : '-'],
     ['Barriers', respondent.barriers.length ? respondent.barriers.join(', ') : '-'],
@@ -570,7 +571,7 @@ function RespondentPlan({
         <div>
           <p className="eyebrow light">Recommended Span</p>
           <div className="spanTitle">
-            <h2>{PILLAR_LABEL[plan.pillarId]}</h2>
+            <h2>{GOOD_PILLAR_LABEL[plan.pillarId]}</h2>
             <span>{FOUNDING_SPAN_NAMED} · {title(plan.levelId)} · {labelForTime(respondent.timePerDay)}</span>
           </div>
         </div>
@@ -596,7 +597,7 @@ function RespondentPlan({
           <div className="sectionHead">
             <div>
               <h3>Five personalised practices</h3>
-              <span>{PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
+              <span>{GOOD_PILLAR_LABEL[plan.pillarId]} · {plan.levelId}</span>
             </div>
           </div>
           <button className="planButton" onClick={onOpenPlan}>
@@ -719,7 +720,7 @@ function RespondentPlan({
             {spanOverridden && (
               <div className="infoBox">
                 <strong>Span override active</strong>
-                <p>This member is assigned to {PILLAR_LABEL[plan.pillarId]} manually. Scores below are shown for reference only.</p>
+                <p>This member is assigned to {GOOD_PILLAR_LABEL[plan.pillarId]} manually. Scores below are shown for reference only.</p>
               </div>
             )}
             {goalUnsure && (
@@ -730,7 +731,7 @@ function RespondentPlan({
             <div className="scoreGrid" style={{ opacity: plan.overridden || spanOverridden ? 0.45 : 1 }}>
               {rankedPillars.map((pillar) => (
                 <div key={pillar} className={pillar === plan.pillarId ? 'scoreRow winner' : 'scoreRow'}>
-                  <span>{PILLAR_LABEL[pillar]}</span>
+                  <span>{GOOD_PILLAR_LABEL[pillar]}</span>
                   <div className="bar">
                     <i style={{ width: `${Math.min(100, Math.max(3, plan.scores[pillar] * 100))}%` }} />
                   </div>
@@ -749,7 +750,7 @@ function RespondentPlan({
                     className={plan.pillarId === pillar ? 'selected' : ''}
                     onClick={() => onPillarOverride(pillar)}
                   >
-                    {PILLAR_LABEL[pillar]}
+                    {GOOD_PILLAR_LABEL[pillar]}
                   </button>
                 ))}
               </div>
@@ -796,7 +797,7 @@ function RespondentPlan({
                       <span title={HABIT_SCORE_HELP}>{score.toFixed(2)}</span>
                     </div>
                     <div>
-                      <Pill label={PILLAR_LABEL[pillar]} tone={pillar} />
+                      <Pill label={GOOD_PILLAR_LABEL[pillar]} tone={pillar} />
                       <small>{habitAnswerLabel(respondent, habit)}</small>
                     </div>
                     <span className="miniBar"><i style={{ width: `${Math.round(score * 100)}%` }} /></span>
@@ -878,15 +879,6 @@ function PlanDocument({
   plan: Plan;
   onBack: () => void;
 }) {
-  const firstName = respondent.preferredName.split(/\s+/)[0] || 'there';
-  const spanWhy =
-    plan.overridden
-      ? `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
-      : `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
-  const challengeDetail = respondent.mainChallenges.length
-    ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
-    : 'Your practices are tuned mainly from your habit answers and stated focus.';
-  const displayed = practicesForDisplay(plan.items);
   const memberName = (respondent.preferredName || 'Unnamed').trim();
   useDownloadTitle(`GoodSpan Personalised Plan ${memberName}`);
 
@@ -895,17 +887,42 @@ function PlanDocument({
       <div className="planToolbar" data-noprint>
         <button onClick={onBack}>← Back to member</button>
         <div>
-          <span>{respondent.preferredName || 'Unnamed'} · {PILLAR_LABEL[plan.pillarId]}</span>
+          <span>{respondent.preferredName || 'Unnamed'} · {GOOD_PILLAR_LABEL[plan.pillarId]}</span>
           <button className="primary" onClick={() => window.print()}>Download Plan</button>
         </div>
       </div>
+      <MemberPlanPages respondent={respondent} plan={plan} idPrefix="plan" />
+    </main>
+  );
+}
 
+function MemberPlanPages({
+  respondent,
+  plan,
+  idPrefix,
+}: {
+  respondent: Respondent;
+  plan: Plan;
+  idPrefix: string;
+}) {
+  const firstName = respondent.preferredName.split(/\s+/)[0] || 'there';
+  const spanWhy =
+    plan.overridden
+      ? `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${GOOD_PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
+      : `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${GOOD_PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
+  const challengeDetail = respondent.mainChallenges.length
+    ? `You also named ${respondent.mainChallenges.join(' and ')} among your main challenges, and your practices are tuned to those signals.`
+    : 'Your practices are tuned mainly from your habit answers and stated focus.';
+  const displayed = practicesForDisplay(plan.items);
+
+  return (
+    <>
       <section className="planHero" data-planhero>
         <div>
           <div className="planHeroTop">
             <strong>The Good Span</strong>
             <div>
-              <span>{PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_NAMED}</span>
+              <span>{GOOD_PILLAR_LABEL[plan.pillarId]} · {FOUNDING_SPAN_NAMED}</span>
               <span>30 days</span>
             </div>
           </div>
@@ -915,7 +932,7 @@ function PlanDocument({
           <p>We've looked at your wellbeing check-in, current habits, strengths, challenges and personal goals to create a starting plan that fits you.</p>
           <div className="planHeroMeta">
             <Meta label="Prepared for" value={respondent.preferredName || 'Unnamed'} />
-            <Meta label={FOUNDING_SPAN_LABEL} value={`${PILLAR_LABEL[plan.pillarId]} · ${FOUNDING_SPAN_START}`} />
+            <Meta label={FOUNDING_SPAN_LABEL} value={`${GOOD_PILLAR_LABEL[plan.pillarId]} · ${FOUNDING_SPAN_START}`} />
             <Meta label="Starts" value="14 Sept 2026" />
           </div>
         </div>
@@ -946,7 +963,7 @@ function PlanDocument({
               return (
                 <article
                   className="planPractice"
-                  id={`plan-practice-${n}`}
+                  id={`${idPrefix}-practice-${n}`}
                   key={`${item.category}-${item.practice.text}`}
                   data-plancard
                 >
@@ -960,7 +977,7 @@ function PlanDocument({
                       {item.practice.text}
                       <a
                         className="planFootnoteRef"
-                        href={`#plan-note-${n}`}
+                        href={`#${idPrefix}-note-${n}`}
                         aria-label={`Research for practice ${n}`}
                       >
                         [{n}]
@@ -1000,8 +1017,8 @@ function PlanDocument({
             {displayed.map(({ item }, index) => {
               const n = index + 1;
               return (
-                <li key={`${item.category}-${item.practice.text}`} id={`plan-note-${n}`}>
-                  <a className="planNoteBack" href={`#plan-practice-${n}`}>
+                <li key={`${item.category}-${item.practice.text}`} id={`${idPrefix}-note-${n}`}>
+                  <a className="planNoteBack" href={`#${idPrefix}-practice-${n}`}>
                     <span>{n}</span>
                     {item.practice.text}
                   </a>
@@ -1022,7 +1039,7 @@ function PlanDocument({
           </ol>
         </PlanSection>
       </section>
-    </main>
+    </>
   );
 }
 
@@ -1189,7 +1206,7 @@ function CirclesView({
             return (
               <article key={circle.id} className="circle">
                 <div className="circleHead">
-                  <Pill label={PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
+                  <Pill label={GOOD_PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
                   <span className="circleIndex">{FOUNDING_SPAN_NAMED} · Circle {index + 1}</span>
                 </div>
                 <h3>{circle.city}</h3>
@@ -1221,12 +1238,12 @@ function CirclesView({
                           >
                             {circles.map((option, optionIndex) => (
                               <option key={option.id} value={option.id}>
-                                Circle {optionIndex + 1} · {PILLAR_LABEL[option.pillarId]} · {option.city}
+                                Circle {optionIndex + 1} · {GOOD_PILLAR_LABEL[option.pillarId]} · {option.city}
                                 {option.id === circle.id ? ' · current' : ''}
                               </option>
                             ))}
                             <option value={nextManualCircleId(circles, circle.pillarId, circle.city)}>
-                              New Circle · {PILLAR_LABEL[circle.pillarId]} · {circle.city}
+                              New Circle · {GOOD_PILLAR_LABEL[circle.pillarId]} · {circle.city}
                             </option>
                           </select>
                         </label>
@@ -1238,7 +1255,7 @@ function CirclesView({
                   <span>Download Circle Overview</span>
                   <span>→</span>
                 </button>
-                <p className="circleOverviewHint">Member summaries and shared practices.</p>
+                <p className="circleOverviewHint">Member summaries, shared practices, and the plans sent to each person.</p>
               </article>
             );
           })}
@@ -1261,9 +1278,9 @@ function CircleOverview({
 }) {
   const city = circle.city;
   const extras = satelliteCities(circle.members.map((member) => member.location), city);
-  const spanLabel = PILLAR_LABEL[circle.pillarId];
+  const spanLabel = GOOD_PILLAR_LABEL[circle.pillarId];
   const shared = sharedCirclePractices(circle.members, plans);
-  useDownloadTitle(`GoodSpan Founding Span ${FOUNDING_SPAN_DATE_SHORT} - Good${spanLabel} - Circle ${index + 1} Overview`);
+  useDownloadTitle(`GoodSpan Founding Span ${FOUNDING_SPAN_DATE_SHORT} - ${spanLabel} - Circle ${index + 1} Overview`);
 
   return (
     <main className="planDoc circleDoc">
@@ -1390,6 +1407,53 @@ function CircleOverview({
           )}
         </PlanSection>
       </section>
+
+      <section className="planHero planDivider" data-planhero>
+        <div>
+          <div className="planHeroTop">
+            <strong>The Good Span</strong>
+            <div>
+              <span>{spanLabel} · {FOUNDING_SPAN_NAMED}</span>
+              <span>Circle {index + 1}</span>
+            </div>
+          </div>
+          <div className="planHeroRule" />
+          <h1>Personalised plans</h1>
+          <p>The following pages are the plans sent to each member of this Circle, in the same form they received them.</p>
+          <p className="circleConfidential">
+            This pack is for the Span Lead. Please keep all member plans strictly confidential.
+          </p>
+          <div className="planHeroMeta">
+            <Meta label="Circle" value={`${index + 1} · ${city}`} />
+            <Meta label="Members" value={String(circle.members.length)} />
+            <Meta label="Contents" value="One plan per member, as distributed" />
+          </div>
+        </div>
+      </section>
+
+      {circle.members.map((member) => {
+        const plan = plans.get(member.id);
+        if (!plan) {
+          return (
+            <section key={member.id} className="planHero embeddedPlan" data-planhero>
+              <div>
+                <div className="planHeroTop">
+                  <strong>The Good Span</strong>
+                  <span>{member.preferredName || 'Unnamed'}</span>
+                </div>
+                <div className="planHeroRule" />
+                <h1>{member.preferredName || 'Unnamed'}</h1>
+                <p>No personalised plan was generated for this member.</p>
+              </div>
+            </section>
+          );
+        }
+        return (
+          <div key={member.id} className="embeddedPlan">
+            <MemberPlanPages respondent={member} plan={plan} idPrefix={`member-${member.id}`} />
+          </div>
+        );
+      })}
     </main>
   );
 }
