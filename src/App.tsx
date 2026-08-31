@@ -75,7 +75,7 @@ const FOUNDING_SPAN_LABEL = 'Founding Span';
 const FOUNDING_SPAN_START = 'starting 14 Sept 2026';
 const FOUNDING_SPAN_NAMED = `${FOUNDING_SPAN_LABEL} · ${FOUNDING_SPAN_START}`;
 const FOUNDING_SPAN_DATE_SHORT = '14 Sep';
-const ADMIN_DOCUMENT_TITLE = 'GoodSpan Practice Matcher Admin';
+const ADMIN_DOCUMENT_TITLE = 'GoodSpan Admin';
 
 type StartWeightPresetId = 'balanced' | 'quickWins' | 'personalization' | 'custom';
 type StartWeights = Pick<StartWithThisSettings, 'effortWeight' | 'visibilityWeight' | 'habitProximityBonus' | 'barrierMatchBonus'>;
@@ -291,12 +291,7 @@ export default function App() {
       <div className="loginScreen">
         <div className="loginCard">
           <Brand />
-          <p className="eyebrow">Admin Tool</p>
-          <h1>
-            Practice
-            <br />
-            Matcher
-          </h1>
+          <h1>Admin</h1>
           <div className="rule" />
           <div className="loginForm">
             <input
@@ -331,7 +326,7 @@ export default function App() {
           <div className="topLeft">
             <div className="brandCompact">
               <strong>The Good Span</strong>
-              <span>Practice Matcher</span>
+              <span>Admin</span>
             </div>
             <nav>
               {(['members', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
