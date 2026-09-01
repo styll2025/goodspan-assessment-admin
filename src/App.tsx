@@ -1576,7 +1576,7 @@ function downloadLibraryPractices(
   const challenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
   downloadXlsx(
     libraryExportFilename(filters),
-    ['Pillar', 'Category', 'Level', 'Effort', 'Visibility', 'Practice', 'Why', 'Keywords matched', 'Evidence', 'References'],
+    ['Pillar', 'Category', 'Level', 'Effort', 'Visibility', 'Practice', 'Why', 'Keywords matched', 'Evidence', 'References', 'Evidence type', 'Evidence–practice fit'],
     rows.map((row) => {
       const terms = matchedChallengeTerms(row.practice, row.category, challenges);
       return [
@@ -1590,6 +1590,8 @@ function downloadLibraryPractices(
         terms.map((term) => `${term.keyword} (${term.challenge})`).join('; '),
         row.practice.evidence,
         row.practice.references.join(' | '),
+        row.practice.evidenceType,
+        row.practice.evidenceFit,
       ];
     }),
   );
@@ -1628,7 +1630,7 @@ function PracticeBank({
       practices.map((practice) => ({ pillarId, category: categoryName, practice })),
     ),
   ).filter((row) => {
-    const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence}`.toLowerCase();
+    const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence} ${row.practice.evidenceType} ${row.practice.evidenceFit} ${row.practice.references.join(' ')}`.toLowerCase();
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
       (category === 'all' || row.category === category) &&
@@ -1728,6 +1730,7 @@ function PracticeBank({
               <h2>{PILLAR_LABEL[group.pillarId]}</h2>
               <span>{group.rows.length} {group.rows.length === 1 ? 'practice' : 'practices'}</span>
             </div>
+            <div className="bankScroll">
             <div className="bankGrid bankHead">
               <span>Pillar</span>
               <span>Category</span>
@@ -1735,8 +1738,12 @@ function PracticeBank({
               <BankScoreTip label="Effort" {...EFFORT_TIP} />
               <BankScoreTip label="Visibility" {...VISIBILITY_TIP} />
               <span>Practice</span>
+              <span>Why</span>
               <span>Keywords matched</span>
               <span>Evidence</span>
+              <span>References</span>
+              <span>Evidence type</span>
+              <span>Evidence–practice fit</span>
             </div>
             {group.rows.map((row) => {
               const terms = matchedChallengeTerms(row.practice, row.category, allChallenges);
@@ -1747,7 +1754,8 @@ function PracticeBank({
                   <span className={`levelText ${row.practice.level}`}>{row.practice.level}</span>
                   <span className="scoreCol">{row.practice.effort}</span>
                   <span className="scoreCol">{row.practice.visibility}</span>
-                  <strong>{row.practice.text}</strong>
+                  <strong className="practiceText">{row.practice.text}</strong>
+                  <span className="whyText">{row.practice.why || '—'}</span>
                   <span className="keywordCell">
                     {terms.length
                       ? terms.slice(0, 4).map((term) => (
@@ -1758,10 +1766,16 @@ function PracticeBank({
                         ))
                       : '—'}
                   </span>
-                  <span className="evidenceText">{row.practice.evidence || row.practice.references[0] || '—'}</span>
+                  <span className="evidenceText">{row.practice.evidence || '—'}</span>
+                  <span className="referencesText">
+                    {row.practice.references.length ? row.practice.references.join(' ') : '—'}
+                  </span>
+                  <span className="evidenceMeta">{row.practice.evidenceType || '—'}</span>
+                  <span className="evidenceMeta">{row.practice.evidenceFit || '—'}</span>
                 </article>
               );
             })}
+            </div>
           </section>
         ))
       )}

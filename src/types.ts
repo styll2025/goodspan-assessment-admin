@@ -70,6 +70,8 @@ export type Practice = {
   references: string[];
   effort: 1 | 2 | 3;
   visibility: 1 | 2 | 3;
+  evidenceType: string;
+  evidenceFit: string;
 };
 
 export type PracticesData = Record<Pillar, Record<string, Practice[]>>;

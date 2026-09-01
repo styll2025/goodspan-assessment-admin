@@ -67,6 +67,8 @@ function practice(overrides: Partial<Practice> & Pick<Practice, 'text'>): Practi
     references: [],
     effort: 2,
     visibility: 2,
+    evidenceType: '',
+    evidenceFit: '',
     ...overrides,
   };
 }
@@ -309,12 +311,15 @@ describe('C5 start with this', () => {
     library.forEach((practice) => {
       expect([1, 2, 3]).toContain(practice.effort);
       expect([1, 2, 3]).toContain(practice.visibility);
+      expect(practice.evidence.trim().length).toBeGreaterThan(0);
+      expect(practice.evidenceType.trim().length).toBeGreaterThan(0);
+      expect(practice.evidenceFit.trim().length).toBeGreaterThan(0);
     });
   });
 
   it('never flags the imported step-tracking practice even when nothing else in the plan scores well', () => {
     const tracker = PRACTICES.move['Movement Snacking & Self-Monitoring'].find((practice) =>
-      practice.text.startsWith('Track your steps for 3 days'),
+      practice.text.startsWith('Use a step tracker'),
     );
     expect(tracker).toMatchObject({ effort: 1, visibility: 1 });
 
@@ -333,7 +338,7 @@ describe('C5 start with this', () => {
       person,
     );
 
-    const trackerItem = flagged.find((entry) => entry.practice.text.startsWith('Track your steps'));
+    const trackerItem = flagged.find((entry) => entry.practice.text.startsWith('Use a step tracker'));
     expect(trackerItem?.startWithThis).toBe(false);
     expect(flagged.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
     expect(flagged.some((entry) => entry.startWithThis)).toBe(true);

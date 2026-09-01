@@ -1649,11 +1649,16 @@ summary {
   text-transform: uppercase;
 }
 
+.bankScroll {
+  overflow-x: auto;
+}
+
 .bankGrid {
   display: grid;
-  grid-template-columns: 72px minmax(140px, 0.8fr) 78px 64px 88px minmax(200px, 1.4fr) minmax(130px, 0.85fr) minmax(160px, 1fr);
-  gap: 0 18px;
-  align-items: baseline;
+  grid-template-columns: 72px minmax(140px, 180px) 78px 56px 72px minmax(220px, 1.3fr) minmax(220px, 1.2fr) minmax(130px, 0.75fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr);
+  gap: 0 14px;
+  align-items: start;
+  min-width: 1760px;
 }
 
 .bankHead {
@@ -1788,14 +1793,26 @@ summary {
   font-weight: 700;
 }
 
-.evidenceText {
-  display: -webkit-box;
-  overflow: hidden;
+.evidenceText,
+.whyText,
+.practiceText,
+.referencesText {
   color: #5a5f56;
   font-size: 12.5px;
+  font-weight: 600;
   line-height: 1.5;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+}
+
+.practiceText {
+  color: #1b1f1a;
+  font-weight: 800;
+}
+
+.evidenceMeta {
+  color: #3d423a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .settingsGrid {
