@@ -196,7 +196,10 @@ export function buildXlsx(headers: string[], rows: string[][]): Uint8Array {
 }
 
 export function downloadXlsx(filename: string, headers: string[], rows: string[][]): void {
-  const blob = new Blob([buildXlsx(headers, rows)], {
+  const bytes = buildXlsx(headers, rows);
+  const payload = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(payload).set(bytes);
+  const blob = new Blob([payload], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = URL.createObjectURL(blob);
