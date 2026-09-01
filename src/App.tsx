@@ -26,7 +26,8 @@ import {
 } from './lib/matching';
 import { satelliteCities } from './lib/cities';
 import { generateSampleRespondents } from './lib/sampleData';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Respondent, StartWithThisSettings, TimePerDay } from './types';
+import { downloadXlsx } from './lib/xlsx';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, StartWithThisSettings, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
 type Score = 1 | 2 | 3;
@@ -1530,6 +1531,70 @@ function bankCategories(pillar: Pillar | 'all'): string[] {
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
+type LibraryPracticeRow = {
+  pillarId: Pillar;
+  category: string;
+  practice: Practice;
+};
+
+function libraryExportFilename({
+  pillar,
+  category,
+  level,
+  effort,
+  visibility,
+  query,
+}: {
+  pillar: Pillar | 'all';
+  category: string;
+  level: Level | 'all';
+  effort: Score | 'all';
+  visibility: Score | 'all';
+  query: string;
+}): string {
+  const parts = ['GoodSpan-practices'];
+  if (pillar !== 'all') parts.push(PILLAR_LABEL[pillar]);
+  if (category !== 'all') parts.push(category.replace(/[^\w]+/g, '-').replace(/^-|-$/g, ''));
+  if (level !== 'all') parts.push(level);
+  if (effort !== 'all') parts.push(`effort-${effort}`);
+  if (visibility !== 'all') parts.push(`visibility-${visibility}`);
+  if (query.trim()) parts.push('search');
+  return `${parts.join('-')}.xlsx`;
+}
+
+function downloadLibraryPractices(
+  rows: LibraryPracticeRow[],
+  filters: {
+    pillar: Pillar | 'all';
+    category: string;
+    level: Level | 'all';
+    effort: Score | 'all';
+    visibility: Score | 'all';
+    query: string;
+  },
+) {
+  const challenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
+  downloadXlsx(
+    libraryExportFilename(filters),
+    ['Pillar', 'Category', 'Level', 'Effort', 'Visibility', 'Practice', 'Why', 'Keywords matched', 'Evidence', 'References'],
+    rows.map((row) => {
+      const terms = matchedChallengeTerms(row.practice, row.category, challenges);
+      return [
+        PILLAR_LABEL[row.pillarId],
+        row.category,
+        title(row.practice.level),
+        String(row.practice.effort),
+        String(row.practice.visibility),
+        row.practice.text,
+        row.practice.why,
+        terms.map((term) => `${term.keyword} (${term.challenge})`).join('; '),
+        row.practice.evidence,
+        row.practice.references.join(' | '),
+      ];
+    }),
+  );
+}
+
 function PracticeBank({
   pillar,
   category,
@@ -1645,6 +1710,14 @@ function PracticeBank({
         </div>
         <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search practice text..." />
         <span className="shownLabel">{rows.length} shown</span>
+        <button
+          type="button"
+          className="primary libraryDownload"
+          disabled={rows.length === 0}
+          onClick={() => downloadLibraryPractices(rows, { pillar, category, level, effort, visibility, query })}
+        >
+          Download Excel
+        </button>
       </div>
       {rows.length === 0 ? (
         <p className="emptyLine">No practices match these filters.</p>

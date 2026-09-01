@@ -1609,6 +1609,24 @@ summary {
   text-transform: uppercase;
 }
 
+.filterBar .libraryDownload {
+  align-self: end;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.filterBar .libraryDownload:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.filterBar .libraryDownload:disabled:hover {
+  background: #2c4636;
+  color: #fff;
+}
+
 .bankTitle {
   display: flex;
   align-items: baseline;
