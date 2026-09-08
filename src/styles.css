@@ -1096,6 +1096,19 @@ summary {
   padding: 11px 12px;
 }
 
+.alternativeBox button.categorySwap {
+  display: grid;
+  gap: 4px;
+}
+
+.alternativeBox .swapCategory {
+  color: #5a5f56;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .habitSignalList {
   display: grid;
   gap: 0;

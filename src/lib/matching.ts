@@ -13,6 +13,7 @@ import type {
   Practice,
   PracticesData,
   Respondent,
+  SlotSwap,
   TimePerDay,
 } from '../types';
 
@@ -291,10 +292,53 @@ export function matchedChallengeTerms(
   );
 }
 
+export function normalizeSlotSwap(value: string | SlotSwap | undefined): SlotSwap | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value ? { category: '', text: value } : null;
+  if (!value.text) return null;
+  return { category: value.category ?? '', text: value.text };
+}
+
+export function applySlotSwaps(
+  items: PlanItem[],
+  scoredCategories: ScoredCategory[],
+  swaps: Record<number, string | SlotSwap>,
+): PlanItem[] {
+  return items.map((item, index) => {
+    const swap = normalizeSlotSwap(swaps[index]);
+    if (!swap) return item;
+    const targetName = swap.category || item.category;
+    const family = scoredCategories.find((entry) => entry.category === targetName);
+    if (!family?.practices.length) return item;
+    const chosen = family.practices.find((practice) => practice.text === swap.text) ?? family.practices[0];
+    if (chosen.text === item.practice.text && family.category === item.category) return item;
+    return toPlanItem(family, chosen, item.reason);
+  });
+}
+
+export function otherCategoryOptions(
+  pillarId: Pillar,
+  levelId: Level,
+  respondent: Respondent,
+  currentItems: PlanItem[],
+  currentCategory: string,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
+): Array<{ category: string; practice: Practice; used: boolean; score: number }> {
+  return buildScoredCategories(pillarId, levelId, respondent, settings)
+    .filter((family) => family.category !== currentCategory && family.practices[0])
+    .map((family) => ({
+      category: family.category,
+      practice: family.practices[0],
+      used: currentItems.some((item) => item.category === family.category),
+      score: family.practices[0].score,
+    }))
+    .sort((left, right) => Number(left.used) - Number(right.used) || right.score - left.score);
+}
+
 export function buildPlan(
   respondent: Respondent,
   settings: MatchingSettings = DEFAULT_SETTINGS,
-  overrides?: { pillarId?: Pillar; levelId?: Level; swaps?: Record<number, string> },
+  overrides?: { pillarId?: Pillar; levelId?: Level; swaps?: Record<number, string | SlotSwap> },
 ): Plan {
   const rec = computeRecommendation(respondent, settings);
   const pillarId = overrides?.pillarId ?? rec.pillarId;
@@ -302,17 +346,7 @@ export function buildPlan(
   const scoredCategories = buildScoredCategories(pillarId, levelId, respondent, settings);
   let items = buildSlots(scoredCategories, pillarId, respondent, settings);
   if (overrides?.swaps) {
-    items = items.map((item, index) => {
-      const text = overrides.swaps?.[index];
-      if (!text || text === item.practice.text) return item;
-      const chosen = item.alternatives.find((practice) => practice.text === text);
-      if (!chosen) return item;
-      return {
-        ...item,
-        practice: chosen,
-        alternatives: [item.practice, ...item.alternatives.filter((practice) => practice.text !== text)],
-      };
-    });
+    items = applySlotSwaps(items, scoredCategories, overrides.swaps);
   }
   return {
     respondentId: respondent.id,

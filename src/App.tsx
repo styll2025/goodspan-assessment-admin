@@ -19,6 +19,7 @@ import {
   cloneSettings,
   computeRecommendation,
   matchedChallengeTerms,
+  otherCategoryOptions,
   CIRCLE_LOCATION_KEY,
   isSharedLevelFamily,
   libraryLevelLabel,
@@ -30,7 +31,7 @@ import {
 import { uniqueMemberCities } from './lib/cities';
 import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
 import { downloadXlsx } from './lib/xlsx';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, StartWithThisSettings, TimePerDay } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
 type Score = 1 | 2 | 3;
@@ -158,10 +159,10 @@ export default function App() {
     () =>
       new Map(
         respondents.map((respondent) => {
-          const slotSwaps: Record<number, string> = {};
-          Object.entries(swaps).forEach(([key, text]) => {
+          const slotSwaps: Record<number, SlotSwap> = {};
+          Object.entries(swaps).forEach(([key, swap]) => {
             const [id, index] = key.split(':');
-            if (id === respondent.id) slotSwaps[Number(index)] = text;
+            if (id === respondent.id) slotSwaps[Number(index)] = swap;
           });
           return [
             respondent.id,
@@ -266,8 +267,18 @@ export default function App() {
     clearMemberSwaps(respondentId);
   }
 
-  function swapPractice(respondentId: string, index: number, text: string) {
-    setSwaps((prev) => ({ ...prev, [`${respondentId}:${index}`]: text }));
+  function swapPractice(respondentId: string, index: number, category: string, text: string) {
+    const plan = plans.get(respondentId);
+    setSwaps((prev) => {
+      const next = { ...prev, [`${respondentId}:${index}`]: { category, text } };
+      if (!plan) return next;
+      const otherIndex = plan.items.findIndex((item, slot) => slot !== index && item.category === category);
+      if (otherIndex >= 0) {
+        const current = plan.items[index];
+        next[`${respondentId}:${otherIndex}`] = { category: current.category, text: current.practice.text };
+      }
+      return next;
+    });
   }
 
   function resetOverrides() {
@@ -409,7 +420,8 @@ export default function App() {
                 onLevelOverride={(level) => setLevelOverride(selected.id, level)}
                 onPillarOverride={(pillar) => setPillarOverride(selected.id, pillar)}
                 spanOverridden={Boolean(pillarOverrides[selected.id])}
-                onSwapPractice={(index, text) => swapPractice(selected.id, index, text)}
+                onSwapPractice={(index, category, text) => swapPractice(selected.id, index, category, text)}
+                settings={settings}
               />
             ) : (
               <NoRespondents loading={sheetLoading} status={status} onRetry={loadFromSheet} />
@@ -526,6 +538,7 @@ function RespondentPlan({
   onPillarOverride,
   spanOverridden,
   onSwapPractice,
+  settings,
 }: {
   respondent: Respondent;
   plan: Plan;
@@ -534,7 +547,8 @@ function RespondentPlan({
   onLevelOverride: (level: Level) => void;
   onPillarOverride: (pillar: Pillar) => void;
   spanOverridden: boolean;
-  onSwapPractice: (index: number, text: string) => void;
+  onSwapPractice: (index: number, category: string, text: string) => void;
+  settings: MatchingSettings;
 }) {
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
@@ -619,6 +633,9 @@ function RespondentPlan({
               const itemKey = `${slotIndex}-${item.category}-${item.practice.text}`;
               const source = item.practice.references.join('\n') || item.practice.evidence;
               const sourceExpanded = sourceOpen === itemKey;
+              const categoryOptions = swapOpen === itemKey
+                ? otherCategoryOptions(plan.pillarId, plan.levelId, respondent, plan.items, item.category, settings)
+                : [];
               return (
                 <article key={itemKey} className="practice">
                   <span className="slot">{String(displayIndex + 1).padStart(2, '0')}</span>
@@ -634,7 +651,7 @@ function RespondentPlan({
                           i
                         </button>
                         <button
-                          title="Swap replaces this practice with a different one from the same category, at the same intensity."
+                          title="Swap this practice within its category, or change the category for this slot."
                           type="button"
                           onClick={() => setSwapOpen(swapOpen === itemKey ? null : itemKey)}
                         >
@@ -646,7 +663,7 @@ function RespondentPlan({
                       <div className="infoBox swapInfo">
                         <strong>How this slot was filled, and what Swap does</strong>
                         <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the member's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                        <p>Swap lists the other practices in the same category at the same intensity, in scoring order, so the next-best fit is at the top. It changes this member only and leaves the Practice Bank untouched.</p>
+                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. It changes this member only and leaves the Practice Bank untouched.</p>
                       </div>
                     )}
                     {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
@@ -678,7 +695,7 @@ function RespondentPlan({
                               key={alternative.text}
                               type="button"
                               onClick={() => {
-                                onSwapPractice(slotIndex, alternative.text);
+                                onSwapPractice(slotIndex, item.category, alternative.text);
                                 setSwapOpen(null);
                               }}
                             >
@@ -687,6 +704,28 @@ function RespondentPlan({
                           ))
                         ) : (
                           <p>No alternatives at this intensity in this category.</p>
+                        )}
+                        <div>Change category</div>
+                        {categoryOptions.length ? (
+                          categoryOptions.map((option) => (
+                            <button
+                              key={option.category}
+                              type="button"
+                              className="categorySwap"
+                              onClick={() => {
+                                onSwapPractice(slotIndex, option.category, option.practice.text);
+                                setSwapOpen(null);
+                              }}
+                            >
+                              <span className="swapCategory">
+                                {option.category}
+                                {option.used ? ' · on plan' : ''}
+                              </span>
+                              <span>{option.practice.text}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <p>No other categories at this intensity.</p>
                         )}
                       </div>
                     )}
@@ -2638,7 +2677,7 @@ function shortTime(value: string): string {
 }
 
 function overrideSummary(
-  swaps: Record<string, string>,
+  swaps: Record<string, SlotSwap>,
   levelOverrides: Record<string, Level>,
   pillarOverrides: Record<string, Pillar>,
   circleOverrides: Record<string, string>,

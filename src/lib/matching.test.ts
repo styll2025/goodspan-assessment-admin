@@ -451,6 +451,54 @@ describe('C5 start with this', () => {
     expect(Object.keys(PRACTICES.sleep)).toEqual(expect.arrayContaining(overridden.items.map((item) => item.category)));
   });
 
+  it('swaps a practice within the same category using a legacy text value', () => {
+    const person = respondent({ focusArea: 'sleep' });
+    const base = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
+    const slotIndex = base.items.findIndex((entry) => entry.alternatives.length > 0);
+    expect(slotIndex).toBeGreaterThanOrEqual(0);
+    const original = base.items[slotIndex];
+    const alternative = original.alternatives[0];
+    const swapped = buildPlan(person, DEFAULT_SETTINGS, {
+      pillarId: 'sleep',
+      swaps: { [slotIndex]: alternative.text },
+    });
+    expect(swapped.items[slotIndex].category).toBe(original.category);
+    expect(swapped.items[slotIndex].practice.text).toBe(alternative.text);
+  });
+
+  it('replaces a slot with an unused category', () => {
+    const person = respondent({ focusArea: 'sleep' });
+    const base = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
+    const unused = Object.keys(PRACTICES.sleep).find((category) => !base.items.some((entry) => entry.category === category));
+    expect(unused).toBeTruthy();
+    const practice = practicesForLevel(PRACTICES.sleep[unused!], base.levelId)[0];
+    expect(practice).toBeTruthy();
+    const swapped = buildPlan(person, DEFAULT_SETTINGS, {
+      pillarId: 'sleep',
+      swaps: { 0: { category: unused!, text: practice.text } },
+    });
+    expect(swapped.items[0].category).toBe(unused);
+    expect(swapped.items[0].practice.text).toBe(practice.text);
+    expect(new Set(swapped.items.map((entry) => entry.category)).size).toBe(swapped.items.length);
+  });
+
+  it('exchanges two slots when the chosen category is already on the plan', () => {
+    const person = respondent({ focusArea: 'sleep' });
+    const base = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
+    const first = base.items[0];
+    const second = base.items[1];
+    const swapped = buildPlan(person, DEFAULT_SETTINGS, {
+      pillarId: 'sleep',
+      swaps: {
+        0: { category: second.category, text: second.practice.text },
+        1: { category: first.category, text: first.practice.text },
+      },
+    });
+    expect(swapped.items[0].category).toBe(second.category);
+    expect(swapped.items[1].category).toBe(first.category);
+    expect(new Set(swapped.items.map((entry) => entry.category)).size).toBe(swapped.items.length);
+  });
+
   it('keeps one Screentime practice on GoodSleep and offers it at every intensity', () => {
     const screentime = PRACTICES.sleep.Screentime;
     expect(screentime).toHaveLength(1);

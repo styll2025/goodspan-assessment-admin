@@ -1,9 +1,9 @@
-import type { Level, Pillar } from '../types';
+import type { Level, Pillar, SlotSwap } from '../types';
 
 const OVERRIDES_KEY = 'gs_admin_overrides';
 
 export type AdminOverrides = {
-  swaps: Record<string, string>;
+  swaps: Record<string, SlotSwap>;
   levelOverrides: Record<string, Level>;
   pillarOverrides: Record<string, Pillar>;
   circleOverrides: Record<string, string>;
@@ -16,13 +16,32 @@ export const EMPTY_OVERRIDES: AdminOverrides = {
   circleOverrides: {},
 };
 
+export function normalizeSwapRecord(value: unknown): Record<string, SlotSwap> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const next: Record<string, SlotSwap> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+    if (typeof item === 'string' && item) {
+      next[key] = { category: '', text: item };
+      return;
+    }
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return;
+    const record = item as { category?: unknown; text?: unknown };
+    if (typeof record.text !== 'string' || !record.text) return;
+    next[key] = {
+      category: typeof record.category === 'string' ? record.category : '',
+      text: record.text,
+    };
+  });
+  return next;
+}
+
 export function loadAdminOverrides(): AdminOverrides {
   try {
     const raw = localStorage.getItem(OVERRIDES_KEY);
     if (!raw) return EMPTY_OVERRIDES;
     const parsed = JSON.parse(raw) as Partial<AdminOverrides>;
     return {
-      swaps: isStringRecord(parsed.swaps) ? parsed.swaps : {},
+      swaps: normalizeSwapRecord(parsed.swaps),
       levelOverrides: isLevelRecord(parsed.levelOverrides) ? parsed.levelOverrides : {},
       pillarOverrides: isPillarRecord(parsed.pillarOverrides) ? parsed.pillarOverrides : {},
       circleOverrides: isStringRecord(parsed.circleOverrides) ? parsed.circleOverrides : {},
@@ -44,7 +63,7 @@ export function keepKeyedByMember<T>(record: Record<string, T>, memberIds: Set<s
   return Object.fromEntries(Object.entries(record).filter(([id]) => memberIds.has(id)));
 }
 
-export function keepSwapsForMembers(swaps: Record<string, string>, memberIds: Set<string>): Record<string, string> {
+export function keepSwapsForMembers<T>(swaps: Record<string, T>, memberIds: Set<string>): Record<string, T> {
   return Object.fromEntries(Object.entries(swaps).filter(([key]) => memberIds.has(key.split(':')[0] ?? '')));
 }
 

@@ -92,6 +92,11 @@ export type PlanItem = {
   startWithThis: boolean;
 };
 
+export type SlotSwap = {
+  category: string;
+  text: string;
+};
+
 export type Plan = {
   respondentId: string;
   pillarId: Pillar;
