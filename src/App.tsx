@@ -29,6 +29,7 @@ import {
   suggestCircleFor,
 } from './lib/matching';
 import { uniqueMemberCities } from './lib/cities';
+import { memberFacingCopy } from './lib/memberFacingCopy';
 import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
 import { downloadXlsx } from './lib/xlsx';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
@@ -1009,6 +1010,7 @@ function MemberPlanPages({
           <div className="planPracticeList">
             {displayed.map(({ item }, index) => {
               const n = index + 1;
+              const why = memberFacingCopy(item.practice.why);
               return (
                 <article
                   className="planPractice"
@@ -1032,7 +1034,7 @@ function MemberPlanPages({
                         [{n}]
                       </a>
                     </h3>
-                    {item.practice.why && <p>{item.practice.why}</p>}
+                    {why && <p>{why}</p>}
                   </div>
                 </article>
               );
@@ -1065,6 +1067,7 @@ function MemberPlanPages({
           <ol className="planNotesList">
             {displayed.map(({ item }, index) => {
               const n = index + 1;
+              const evidence = memberFacingCopy(item.practice.evidence);
               return (
                 <li key={`${item.category}-${item.practice.text}`} id={`${idPrefix}-note-${n}`}>
                   <a className="planNoteBack" href={`#${idPrefix}-practice-${n}`}>
@@ -1072,7 +1075,7 @@ function MemberPlanPages({
                     {item.practice.text}
                   </a>
                   <p className="planNoteCategory">{item.category}</p>
-                  {item.practice.evidence && <p>{item.practice.evidence}</p>}
+                  {evidence && <p>{evidence}</p>}
                   {item.practice.references.length > 0 && (
                     <ul>
                       {splitPracticeReferences(item.practice.references).map((reference, refIndex) => (
