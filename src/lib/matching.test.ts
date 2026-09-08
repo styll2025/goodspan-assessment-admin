@@ -13,6 +13,7 @@ import {
   computeRecommendation,
   CIRCLE_LOCATION_KEY,
   flagStartWithThis,
+  isShareWithGroupCategory,
   newCircleId,
   practicesForDisplay,
 } from './matching';
@@ -399,21 +400,44 @@ describe('C5 start with this', () => {
     expect(none.items).toHaveLength(5);
   });
 
-  it('lists recommended starting points first for display without changing slot indexes', () => {
+  it('lists recommended starting points first, but keeps Share and group practices from the third slot onwards', () => {
     const items = [
       item('Wind Down'),
       { ...item('Circadian Alignment'), startWithThis: true },
       item('Caffeine Timing'),
-      { ...item('Social Connection'), startWithThis: true },
+      { ...item('Share'), startWithThis: true },
     ];
     const ordered = practicesForDisplay(items);
     expect(ordered.map((entry) => entry.item.category)).toEqual([
       'Circadian Alignment',
-      'Social Connection',
       'Wind Down',
+      'Share',
       'Caffeine Timing',
     ]);
-    expect(ordered.map((entry) => entry.slotIndex)).toEqual([1, 3, 0, 2]);
+    expect(ordered.map((entry) => entry.slotIndex)).toEqual([1, 0, 3, 2]);
+    expect(ordered.slice(0, 2).every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
+  });
+
+  it('never shows Share or group practices as the first or second option on a five-practice plan', () => {
+    const people = [
+      respondent({ focusArea: 'sleep' }),
+      respondent({ focusArea: 'eat' }),
+      respondent({ focusArea: 'move' }),
+      respondent({ focusArea: 'mind' }),
+      respondent({
+        focusArea: 'sleep',
+        barriers: ['I lose motivation without support or accountability'],
+      }),
+      ...generateSampleRespondents(),
+    ];
+
+    for (const person of people) {
+      const plan = buildPlan(person);
+      const displayed = practicesForDisplay(plan.items);
+      const nonShareCount = displayed.filter((entry) => !isShareWithGroupCategory(entry.item.category)).length;
+      const guarded = displayed.slice(0, Math.min(2, nonShareCount));
+      expect(guarded.every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
+    }
   });
 
   it('rebuilds practices from an admin pillar override without changing scores', () => {

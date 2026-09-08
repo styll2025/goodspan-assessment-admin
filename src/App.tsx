@@ -2006,6 +2006,7 @@ function SettingsView({
           <div className="slotExplain">
             <div>How the five slots are chosen</div>
             <p>Two steps. First, the best-scoring Circle-facing category is given a slot outright. Then every remaining category is ranked on its best practice's keyword score plus a bonus when it maps to a habit question the member answered weakly, and the top four take the remaining slots. Each winning category contributes its own top-scoring practice.</p>
+            <p>When the plan is shown, Share and other group practices are listed from the third practice onwards — never first or second — even though the Circle-facing category is still assigned a slot first.</p>
             <p>This is what makes two people on the same Span differ: bad bedtime consistency pulls in Circadian Alignment, a poor wind-down pulls in Wind Down.</p>
           </div>
 
@@ -2065,6 +2066,7 @@ function SettingsView({
               </li>
             </ul>
             <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
+            <p>Share and other group practices are never shown as the first or second practice. They are placed from the third option onwards, even if one of them is flagged as a recommended starting point.</p>
           </div>
 
           <StartWithThisControls

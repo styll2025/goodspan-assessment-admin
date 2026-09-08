@@ -122,6 +122,12 @@ export const SOCIAL_CATEGORIES: Record<Pillar, string[]> = {
   move: ['Social & Accountability'],
 };
 
+const SHARE_WITH_GROUP_CATEGORIES = new Set(Object.values(SOCIAL_CATEGORIES).flat());
+
+export function isShareWithGroupCategory(category: string): boolean {
+  return SHARE_WITH_GROUP_CATEGORIES.has(category);
+}
+
 export const BARRIER_OPTIONS: Barrier[] = [
   "I don't have much time",
   'I struggle to stay consistent',
@@ -586,9 +592,16 @@ export function flagStartWithThis(
 }
 
 export function practicesForDisplay(items: PlanItem[]): Array<{ item: PlanItem; slotIndex: number }> {
-  return items
+  const ranked = items
     .map((item, slotIndex) => ({ item, slotIndex }))
     .sort((a, b) => Number(b.item.startWithThis) - Number(a.item.startWithThis) || a.slotIndex - b.slotIndex);
+
+  const share = ranked.filter((entry) => isShareWithGroupCategory(entry.item.category));
+  const rest = ranked.filter((entry) => !isShareWithGroupCategory(entry.item.category));
+  if (share.length === 0 || rest.length === 0) return ranked;
+
+  const headCount = Math.min(2, rest.length);
+  return [...rest.slice(0, headCount), ...share, ...rest.slice(headCount)];
 }
 
 export function buildDiverseGroups(
