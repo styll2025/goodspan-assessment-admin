@@ -407,6 +407,11 @@ p {
   line-height: 1.55;
 }
 
+.noRespondents .emptyStatus {
+  color: #8a8f86;
+  font-size: 14px;
+}
+
 .respondentHero,
 .pageIntro {
   border-bottom: 2px solid #1b1f1a;

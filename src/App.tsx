@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_SETTINGS,
@@ -26,7 +26,7 @@ import {
   suggestCircleFor,
 } from './lib/matching';
 import { uniqueMemberCities } from './lib/cities';
-import { generateSampleRespondents } from './lib/sampleData';
+import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
 import { downloadXlsx } from './lib/xlsx';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, StartWithThisSettings, TimePerDay } from './types';
 
@@ -58,7 +58,7 @@ const VISIBILITY_TIP = {
 };
 
 const ADMIN_PASSCODE = 'goodspan-circle-2026';
-const DEFAULT_SHEET_URL =
+const ASSESSMENT_URL =
   'https://script.google.com/macros/s/AKfycbxu69Ns0-WMnGqefvoJhY0WHw-4wAl1SikHjBqQywYzN_55oWRiVFibH6e5wEriSmJH/exec';
 const HABIT_SCORE_HELP =
   'This answer converted to a 0–1 scale, where 1 is the weakest current habit and so the most room to grow. The two questions in a pillar are averaged to give that pillar\'s base score in Pillar match above, before challenge boosts and stated-goal weight are added.';
@@ -137,19 +137,20 @@ export default function App() {
   const [circleOverview, setCircleOverview] = useState<{ circle: Circle; index: number } | null>(null);
   const [search, setSearch] = useState('');
   const [settings, setSettings] = useState<MatchingSettings>(DEFAULT_SETTINGS);
-  const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
-  const [status, setStatus] = useState('Not connected - using local data');
+  const [status, setStatus] = useState('Loading assessment responses...');
   const [practicePillar, setPracticePillar] = useState<Pillar | 'all'>('all');
   const [practiceLevel, setPracticeLevel] = useState<Level | 'all'>('all');
   const [practiceEffort, setPracticeEffort] = useState<Score | 'all'>('all');
   const [practiceVisibility, setPracticeVisibility] = useState<Score | 'all'>('all');
   const [practiceCategory, setPracticeCategory] = useState('all');
   const [practiceQuery, setPracticeQuery] = useState('');
-  const [levelOverrides, setLevelOverrides] = useState<Record<string, Level>>({});
-  const [pillarOverrides, setPillarOverrides] = useState<Record<string, Pillar>>({});
-  const [swaps, setSwaps] = useState<Record<string, string>>({});
-  const [circleOverrides, setCircleOverrides] = useState<Record<string, string>>({});
+  const [savedOverrides] = useState(loadAdminOverrides);
+  const [levelOverrides, setLevelOverrides] = useState(savedOverrides.levelOverrides);
+  const [pillarOverrides, setPillarOverrides] = useState(savedOverrides.pillarOverrides);
+  const [swaps, setSwaps] = useState(savedOverrides.swaps);
+  const [circleOverrides, setCircleOverrides] = useState(savedOverrides.circleOverrides);
   const [sheetConnected, setSheetConnected] = useState(false);
+  const [sheetLoading, setSheetLoading] = useState(authed);
 
   const plans = useMemo(
     () =>
@@ -201,44 +202,40 @@ export default function App() {
     setAuthed(false);
   }
 
-  async function loadFromSheet() {
-    setStatus('Loading responses...');
+  useEffect(() => {
+    saveAdminOverrides({ swaps, levelOverrides, pillarOverrides, circleOverrides });
+  }, [swaps, levelOverrides, pillarOverrides, circleOverrides]);
+
+  const loadFromSheet = useCallback(async () => {
+    setSheetLoading(true);
+    setStatus('Loading assessment responses...');
     try {
-      const response = await fetch(sheetUrl);
+      const response = await fetch(ASSESSMENT_URL);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const rows = (await response.json()) as Record<string, unknown>[];
       if (!Array.isArray(rows)) throw new Error('Unexpected response shape');
-      applyRespondents(rows.map(normalizeRespondent), `Connected to Google Sheet — ${rows.length} loaded`);
+      const next = rows.map(normalizeRespondent);
+      const ids = new Set(next.map((respondent) => respondent.id));
+      setRespondents(next);
+      setSelectedId((current) => (current && ids.has(current) ? current : next[0]?.id ?? ''));
+      setLevelOverrides((prev) => keepKeyedByMember(prev, ids));
+      setPillarOverrides((prev) => keepKeyedByMember(prev, ids));
+      setSwaps((prev) => keepSwapsForMembers(prev, ids));
+      setCircleOverrides((prev) => keepKeyedByMember(prev, ids));
       setSheetConnected(true);
+      setStatus(`${next.length} ${next.length === 1 ? 'member' : 'members'} from the assessment`);
     } catch (error) {
       setSheetConnected(false);
-      setStatus(error instanceof Error ? `Sheet error — ${error.message}` : 'Sheet error — using local data');
+      setStatus(error instanceof Error ? `Could not load the assessment — ${error.message}` : 'Could not load the assessment');
+    } finally {
+      setSheetLoading(false);
     }
-  }
+  }, []);
 
-  function loadSamples() {
-    const sample = generateSampleRespondents();
-    applyRespondents(sample, `${sample.length} sample members loaded`);
-    setSheetConnected(false);
-  }
-
-  function applyRespondents(next: Respondent[], nextStatus: string) {
-    setRespondents(next);
-    setSelectedId(next[0]?.id ?? '');
-    setSearch('');
-    setPlanOpen(false);
-    setCircleOverview(null);
-    setLevelOverrides({});
-    setPillarOverrides({});
-    setSwaps({});
-    setCircleOverrides({});
-    setStatus(nextStatus);
-  }
-
-  function disconnectSheet() {
-    setSheetConnected(false);
-    setStatus('Not connected — using local data');
-  }
+  useEffect(() => {
+    if (!authed) return;
+    void loadFromSheet();
+  }, [authed, loadFromSheet]);
 
   function clearMemberSwaps(respondentId: string) {
     setSwaps((prev) => {
@@ -371,7 +368,7 @@ export default function App() {
             {filtered.length === 0 && (
               <div className="sidebarEmpty">
                 {respondents.length === 0
-                  ? 'No responses loaded. Use Sample data to test the matching logic.'
+                  ? (sheetLoading ? 'Loading members from the assessment…' : 'No assessment responses yet.')
                   : 'No members match this search.'}
               </div>
             )}
@@ -413,7 +410,7 @@ export default function App() {
                 onSwapPractice={(index, text) => swapPractice(selected.id, index, text)}
               />
             ) : (
-              <NoRespondents onSample={loadSamples} />
+              <NoRespondents loading={sheetLoading} status={status} onRetry={loadFromSheet} />
             )}
           </main>
         </section>
@@ -464,13 +461,10 @@ export default function App() {
         <SettingsView
           settings={settings}
           onSettings={setSettings}
-          sheetUrl={sheetUrl}
-          onSheetUrl={setSheetUrl}
-          onLoadSheet={loadFromSheet}
-          onDisconnect={disconnectSheet}
+          onRefreshSheet={loadFromSheet}
           sheetConnected={sheetConnected}
+          sheetLoading={sheetLoading}
           status={status}
-          onSample={loadSamples}
           overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, circleOverrides)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
@@ -492,14 +486,31 @@ function Brand() {
   );
 }
 
-function NoRespondents({ onSample }: { onSample: () => void }) {
+function NoRespondents({
+  loading,
+  status,
+  onRetry,
+}: {
+  loading: boolean;
+  status: string;
+  onRetry: () => void;
+}) {
   return (
     <div className="noRespondents">
-      <p className="eyebrow">Nothing to match yet</p>
-      <h2>No members</h2>
+      <p className="eyebrow">{loading ? 'Loading' : 'Nothing to match yet'}</p>
+      <h2>{loading ? 'Loading members' : 'No members'}</h2>
       <div className="rule" />
-      <p>Responses submitted through the end-user assessment appear here automatically. To test the matching logic now, load a batch of realistic sample members.</p>
-      <button className="primary" onClick={onSample}>Load sample data</button>
+      <p>
+        {loading
+          ? 'Pulling the latest responses from the assessment.'
+          : 'Responses from the assessment appear here automatically. If none are showing, refresh to try again.'}
+      </p>
+      {!loading && (
+        <>
+          <p className="emptyStatus">{status}</p>
+          <button className="primary" onClick={onRetry}>Refresh responses</button>
+        </>
+      )}
     </div>
   );
 }
@@ -830,7 +841,7 @@ function RespondentPlan({
           <span>{circleCaption}</span>
         </div>
         {circleMembers.length === 0 && (
-          <p className="emptyCircleNote">Not enough members share this Span yet to suggest a Circle. Load more responses or sample data.</p>
+          <p className="emptyCircleNote">Not enough members share this Span yet to suggest a Circle.</p>
         )}
         <div className="circleMemberList">
           <div className="circleMember">
@@ -1192,7 +1203,7 @@ function CirclesView({
         </div>
       </section>
       {circles.length === 0 ? (
-        <p className="emptyLine">No members loaded yet — load sample data to see proposed Circles.</p>
+        <p className="emptyLine">No members yet — assessment responses appear here automatically.</p>
       ) : (
         <div className="circleGrid">
           {circles.map((circle, index) => {
@@ -1855,13 +1866,10 @@ function BankScoreTip({
 function SettingsView({
   settings,
   onSettings,
-  sheetUrl,
-  onSheetUrl,
-  onLoadSheet,
-  onDisconnect,
+  onRefreshSheet,
   sheetConnected,
+  sheetLoading,
   status,
-  onSample,
   overrideSummary,
   onResetOverrides,
   respondents,
@@ -1871,13 +1879,10 @@ function SettingsView({
 }: {
   settings: MatchingSettings;
   onSettings: (settings: MatchingSettings) => void;
-  sheetUrl: string;
-  onSheetUrl: (url: string) => void;
-  onLoadSheet: () => void;
-  onDisconnect: () => void;
+  onRefreshSheet: () => void;
   sheetConnected: boolean;
+  sheetLoading: boolean;
   status: string;
-  onSample: () => void;
   overrideSummary: string;
   onResetOverrides: () => void;
   respondents: Respondent[];
@@ -1886,7 +1891,7 @@ function SettingsView({
   onSelectId: (id: string) => void;
 }) {
   const [kwSearch, setKwSearch] = useState('');
-  const sheetError = status.startsWith('Sheet error') ? status : '';
+  const sheetError = status.startsWith('Could not load') ? status : '';
   const update = (mutate: (next: MatchingSettings) => void) => {
     const next = cloneSettings(settings);
     mutate(next);
@@ -1913,32 +1918,23 @@ function SettingsView({
       <section className="pageIntro">
         <p className="eyebrow">Configuration</p>
         <h1>Settings</h1>
-        <p>Where responses come from, and how to reset the matcher while you are piloting.</p>
+        <p>Assessment responses load automatically. Manual Circle moves, practice swaps, and Span or intensity overrides stay saved on this browser.</p>
       </section>
 
       <section className="settingSection">
         <div>
           <h2>Data source</h2>
-          <p>Paste the Google Apps Script Web App URL that serves your response sheet. Without it, the tool reads locally saved responses.</p>
+          <p>Members come from the live assessment. This page refreshes them when you open it, and you can pull the latest responses without losing your manual changes.</p>
         </div>
         <div className="settingBody">
           <div className="statusBox">
             <span className="dot" style={{ background: sheetConnected ? '#AECE36' : '#C4C8BE' }} />
-            <strong>{status}</strong>
+            <strong>{sheetLoading ? 'Loading assessment responses…' : status}</strong>
           </div>
-          <div className="fieldLabel">Web App URL</div>
-          <input
-            className="urlInput"
-            placeholder="https://script.google.com/macros/s/…/exec"
-            value={sheetUrl}
-            onChange={(event) => onSheetUrl(event.target.value)}
-          />
           <div className="buttonRow">
-            <button className="primary" type="button" onClick={onLoadSheet}>Connect</button>
-            <button className="ghost" type="button" onClick={onLoadSheet}>↻ Refresh responses</button>
-            {sheetConnected && (
-              <button className="textButton disconnect" type="button" onClick={onDisconnect}>Disconnect</button>
-            )}
+            <button className="primary" type="button" disabled={sheetLoading} onClick={onRefreshSheet}>
+              {sheetLoading ? 'Refreshing…' : 'Refresh responses'}
+            </button>
           </div>
           {sheetError && <div className="sheetError">{sheetError}</div>}
         </div>
@@ -2078,7 +2074,6 @@ function SettingsView({
             plans={plans}
             selectedId={selectedId}
             onSelectId={onSelectId}
-            onSample={onSample}
           />
         </div>
       </section>
@@ -2299,18 +2294,11 @@ function SettingsView({
 
       <section className="settingSection last">
         <div>
-          <h2>Testing and reset</h2>
-          <p>Sample members let you exercise the matching logic without live data. Resetting clears every manual override you have made this session.</p>
+          <h2>Saved changes</h2>
+          <p>Circle moves, practice swaps, and Span or intensity overrides stay on this browser after you log out. Resetting clears them.</p>
         </div>
         <div className="settingBody">
           <div className="toggleInfo first">
-            <div>
-              <strong>Load sample data</strong>
-              <p>Replaces the current list with 30 generated members, grouped into Span cohorts so Circles can actually form.</p>
-            </div>
-            <button className="sampleBtn" type="button" onClick={onSample}>Load sample</button>
-          </div>
-          <div className="toggleInfo">
             <div>
               <strong>Reset overrides</strong>
               <p>{overrideSummary}</p>
@@ -2348,7 +2336,6 @@ function StartWithThisControls({
   plans,
   selectedId,
   onSelectId,
-  onSample,
 }: {
   settings: MatchingSettings;
   update: (mutate: (next: MatchingSettings) => void) => void;
@@ -2356,7 +2343,6 @@ function StartWithThisControls({
   plans: Map<string, Plan>;
   selectedId: string;
   onSelectId: (id: string) => void;
-  onSample: () => void;
 }) {
   const preset = activeStartWeightPreset(settings.startWithThis);
   const preview = respondents.find((respondent) => respondent.id === selectedId) ?? respondents[0] ?? null;
@@ -2484,7 +2470,6 @@ function StartWithThisControls({
         preview={preview}
         plan={previewPlan}
         onSelectId={onSelectId}
-        onSample={onSample}
       />
     </>
   );
@@ -2495,13 +2480,11 @@ function StartWithThisPreview({
   preview,
   plan,
   onSelectId,
-  onSample,
 }: {
   respondents: Respondent[];
   preview: Respondent | null;
   plan: Plan | null;
   onSelectId: (id: string) => void;
-  onSample: () => void;
 }) {
   return (
     <div className="startPreview">
@@ -2509,8 +2492,7 @@ function StartWithThisPreview({
       <p>The five practices stay the same. Watch which ones are flagged {START_FLAG_LABEL} as you change the settings above.</p>
       {respondents.length === 0 || !preview || !plan ? (
         <div className="startPreviewEmpty">
-          <p>Load members to see a real plan. Sample data is enough to try the flags.</p>
-          <button className="sampleBtn" type="button" onClick={onSample}>Load sample data</button>
+          <p>Members appear here once assessment responses have loaded.</p>
         </div>
       ) : (
         <>
