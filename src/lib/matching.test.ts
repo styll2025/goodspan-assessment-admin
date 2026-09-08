@@ -4,6 +4,7 @@ import {
   AGE_BAND_ORDER,
   DEFAULT_SETTINGS,
   PRACTICES,
+  practicesForLevel,
   SOCIAL_CATEGORIES,
   applyCircleOverrides,
   autoCluster,
@@ -296,7 +297,7 @@ describe('C5 start with this', () => {
 
   it('imports effort and visibility from the practice library, not placeholders', () => {
     const library = Object.values(PRACTICES).flatMap((categories) => Object.values(categories).flat());
-    expect(library).toHaveLength(205);
+    expect(library).toHaveLength(203);
     library.forEach((practice) => {
       expect([1, 2, 3]).toContain(practice.effort);
       expect([1, 2, 3]).toContain(practice.visibility);
@@ -450,16 +451,20 @@ describe('C5 start with this', () => {
     expect(Object.keys(PRACTICES.sleep)).toEqual(expect.arrayContaining(overridden.items.map((item) => item.category)));
   });
 
-  it('adds the same Screentime practice to GoodSleep at every intensity', () => {
+  it('keeps one Screentime practice on GoodSleep and offers it at every intensity', () => {
     const screentime = PRACTICES.sleep.Screentime;
-    expect(screentime.map((practice) => practice.level)).toEqual(['gentle', 'moderate', 'deep']);
-    expect(new Set(screentime.map((practice) => practice.text)).size).toBe(1);
+    expect(screentime).toHaveLength(1);
     expect(screentime[0]).toMatchObject({
       effort: 2,
       visibility: 2,
       evidenceType: 'Experimental + observational',
       evidenceFit: 'Direct',
     });
+    expect(['gentle', 'moderate', 'deep'].map((level) => practicesForLevel(screentime, level)[0]?.text)).toEqual([
+      screentime[0].text,
+      screentime[0].text,
+      screentime[0].text,
+    ]);
     expect(PRACTICES.mind.Screentime).toBeUndefined();
     expect(DEFAULT_SETTINGS.habitCategoryMap.sleep.sleepWindDown).toContain('Screentime');
   });

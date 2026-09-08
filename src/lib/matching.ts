@@ -422,6 +422,21 @@ export function suggestCircleFor(person: Respondent, circles: Circle[]): Circle 
   };
 }
 
+export function isSharedLevelFamily(practices: Practice[]): boolean {
+  return practices.length > 0 && new Set(practices.map((practice) => practice.text)).size === 1;
+}
+
+export function practicesForLevel(practices: Practice[], levelId: Level): Practice[] {
+  const exact = practices.filter((practice) => practice.level === levelId);
+  if (exact.length) return exact;
+  if (isSharedLevelFamily(practices)) return [practices[0]];
+  return exact;
+}
+
+export function libraryLevelLabel(practices: Practice[], practice: Practice): string {
+  return isSharedLevelFamily(practices) ? 'all levels' : practice.level;
+}
+
 function buildScoredCategories(
   pillarId: Pillar,
   levelId: Level,
@@ -430,8 +445,7 @@ function buildScoredCategories(
 ): ScoredCategory[] {
   return Object.entries(PRACTICES[pillarId]).map(([category, practices]) => ({
     category,
-    practices: practices
-      .filter((practice) => practice.level === levelId)
+    practices: practicesForLevel(practices, levelId)
       .map((practice) => ({
         ...practice,
         category,

@@ -20,6 +20,8 @@ import {
   computeRecommendation,
   matchedChallengeTerms,
   CIRCLE_LOCATION_KEY,
+  isSharedLevelFamily,
+  libraryLevelLabel,
   newCircleId,
   normalizeRespondent,
   practicesForDisplay,
@@ -1592,7 +1594,7 @@ function downloadLibraryPractices(
       return [
         PILLAR_LABEL[row.pillarId],
         row.category,
-        title(row.practice.level),
+        title(libraryLevelLabel(PRACTICES[row.pillarId][row.category], row.practice)),
         String(row.practice.effort),
         String(row.practice.visibility),
         row.practice.text,
@@ -1641,10 +1643,11 @@ function PracticeBank({
     ),
   ).filter((row) => {
     const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence} ${row.practice.evidenceType} ${row.practice.evidenceFit} ${row.practice.references.join(' ')}`.toLowerCase();
+    const family = PRACTICES[row.pillarId][row.category];
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
       (category === 'all' || row.category === category) &&
-      (level === 'all' || row.practice.level === level) &&
+      (level === 'all' || row.practice.level === level || isSharedLevelFamily(family)) &&
       (effort === 'all' || row.practice.effort === effort) &&
       (visibility === 'all' || row.practice.visibility === visibility) &&
       (!query || text.includes(query.toLowerCase()))
@@ -1758,10 +1761,12 @@ function PracticeBank({
             {group.rows.map((row) => {
               const terms = matchedChallengeTerms(row.practice, row.category, allChallenges);
               return (
-                <article key={`${row.pillarId}-${row.category}-${row.practice.text}`} className="bankGrid bankRow">
+                <article key={`${row.pillarId}-${row.category}-${row.practice.level}-${row.practice.text}`} className="bankGrid bankRow">
                   <span className="categoryText">{PILLAR_LABEL[row.pillarId]}</span>
                   <span className="categoryText">{row.category}</span>
-                  <span className={`levelText ${row.practice.level}`}>{row.practice.level}</span>
+                  <span className={`levelText ${isSharedLevelFamily(PRACTICES[row.pillarId][row.category]) ? 'all' : row.practice.level}`}>
+                    {libraryLevelLabel(PRACTICES[row.pillarId][row.category], row.practice)}
+                  </span>
                   <span className="scoreCol">{row.practice.effort}</span>
                   <span className="scoreCol">{row.practice.visibility}</span>
                   <strong className="practiceText">{row.practice.text}</strong>

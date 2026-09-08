@@ -1763,6 +1763,10 @@ summary {
   color: #8a8f86;
 }
 
+.levelText.all {
+  color: #5a5f56;
+}
+
 .scoreCol {
   color: #1b1f1a;
   font-size: 13px;
