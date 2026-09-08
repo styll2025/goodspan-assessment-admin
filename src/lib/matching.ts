@@ -73,7 +73,7 @@ export const HABIT_LABEL: Record<HabitKey, string> = {
 export const HABIT_CATEGORY_MAP: Record<Pillar, Partial<Record<HabitKey, string[]>>> = {
   sleep: {
     sleepConsistency: ['Circadian Alignment'],
-    sleepWindDown: ['Wind Down'],
+    sleepWindDown: ['Wind Down', 'Digital Boundaries & Attention'],
   },
   move: {
     movementFrequency: ['Incidental Movement & Sedentary Behavior'],

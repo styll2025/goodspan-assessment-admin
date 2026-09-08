@@ -296,7 +296,7 @@ describe('C5 start with this', () => {
 
   it('imports effort and visibility from the practice library, not placeholders', () => {
     const library = Object.values(PRACTICES).flatMap((categories) => Object.values(categories).flat());
-    expect(library).toHaveLength(202);
+    expect(library).toHaveLength(211);
     library.forEach((practice) => {
       expect([1, 2, 3]).toContain(practice.effort);
       expect([1, 2, 3]).toContain(practice.visibility);
@@ -448,6 +448,22 @@ describe('C5 start with this', () => {
     expect(overridden.items).toHaveLength(5);
     expect(overridden.scores).toEqual(matched.scores);
     expect(Object.keys(PRACTICES.sleep)).toEqual(expect.arrayContaining(overridden.items.map((item) => item.category)));
+  });
+
+  it('keeps Digital Boundaries & Attention on both GoodMind and GoodSleep with the same practices', () => {
+    const mind = PRACTICES.mind['Digital Boundaries & Attention'];
+    const sleep = PRACTICES.sleep['Digital Boundaries & Attention'];
+    expect(mind).toHaveLength(9);
+    expect(sleep).toEqual(mind);
+    expect(DEFAULT_SETTINGS.habitCategoryMap.sleep.sleepWindDown).toContain('Digital Boundaries & Attention');
+
+    const plan = buildPlan(respondent({
+      focusArea: 'sleep',
+      mainChallenges: ['Screen overuse'],
+      sleepWindDown: 0,
+    }));
+    expect(plan.pillarId).toBe('sleep');
+    expect(plan.items.some((entry) => entry.category === 'Digital Boundaries & Attention')).toBe(true);
   });
 });
 
