@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Barrier, PlanItem, Practice, Respondent } from '../types';
+import type { PlanItem, Practice, Respondent } from '../types';
 import {
   AGE_BAND_ORDER,
   DEFAULT_SETTINGS,
@@ -218,45 +218,30 @@ describe('C5 start with this', () => {
     expect(flagged.find((entry) => entry.practice.effort === 3)?.startWithThis).toBe(false);
   });
 
-  it('bonuses the Circle-facing practice when the barrier is lack of accountability', () => {
-    const person = respondent({
-      barriers: ['I lose motivation without support or accountability'],
-    });
+  it('never flags Share or group practices as a recommended starting point', () => {
     const socialCategory = SOCIAL_CATEGORIES.sleep[0];
-    const items = [
-      item(socialCategory, { text: 'circle practice', effort: 2, visibility: 2 }),
-      item('Sleep Environment', { text: 'solo practice', effort: 2, visibility: 2 }),
-    ];
-    const flagged = flagStartWithThis(items, 'sleep', person);
-    expect(flagged.find((entry) => entry.category === socialCategory)?.startWithThis).toBe(true);
-  });
-
-  it('never flags a Circle-facing practice when they prefer to do things on their own', () => {
-    const person = respondent({
-      barriers: ['I prefer to do things on my own'],
-    });
-    const socialCategory = SOCIAL_CATEGORIES.sleep[0];
-    const items = [
+    const highScoringShare = [
       item(socialCategory, { text: 'would otherwise win', effort: 1, visibility: 3 }),
       item('Sleep Environment', { text: 'solo fallback', effort: 2, visibility: 2 }),
       item('Sleep Pressure', { text: 'solo other', effort: 2, visibility: 2 }),
     ];
-    const flagged = flagStartWithThis(items, 'sleep', person);
-    expect(flagged.find((entry) => entry.category === socialCategory)?.startWithThis).toBe(false);
-    expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
-  });
 
-  it('does not treat a mismatched solo-preference string as the hard gate', () => {
-    const person = respondent({
-      barriers: ['I prefer doing things alone'] as unknown as Barrier[],
-    });
-    const socialCategory = SOCIAL_CATEGORIES.sleep[0];
-    const items = [
-      item(socialCategory, { text: 'would win', effort: 1, visibility: 3 }),
-      item('Sleep Environment', { text: 'solo fallback', effort: 3, visibility: 2 }),
-    ];
-    const flagged = flagStartWithThis(items, 'sleep', person);
-    expect(flagged.find((entry) => entry.category === socialCategory)?.startWithThis).toBe(true);
+    const byDefault = flagStartWithThis(highScoringShare, 'sleep', respondent());
+    const withAccountability = flagStartWithThis(
+      highScoringShare,
+      'sleep',
+      respondent({ barriers: ['I lose motivation without support or accountability'] }),
+    );
+    const preferAlone = flagStartWithThis(
+      highScoringShare,
+      'sleep',
+      respondent({ barriers: ['I prefer to do things on my own'] }),
+    );
+
+    for (const flagged of [byDefault, withAccountability, preferAlone]) {
+      expect(flagged.find((entry) => entry.category === socialCategory)?.startWithThis).toBe(false);
+      expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
+    }
   });
 
   it('flags 0, 1, or 2 practices depending on the plan, and never more than 2', () => {
@@ -400,12 +385,12 @@ describe('C5 start with this', () => {
     expect(none.items).toHaveLength(5);
   });
 
-  it('lists recommended starting points first, but keeps Share and group practices from the third slot onwards', () => {
+  it('lists recommended starting points first, then keeps Share from the third slot onwards', () => {
     const items = [
       item('Wind Down'),
       { ...item('Circadian Alignment'), startWithThis: true },
       item('Caffeine Timing'),
-      { ...item('Share'), startWithThis: true },
+      item('Share'),
     ];
     const ordered = practicesForDisplay(items);
     expect(ordered.map((entry) => entry.item.category)).toEqual([
@@ -415,6 +400,7 @@ describe('C5 start with this', () => {
       'Caffeine Timing',
     ]);
     expect(ordered.map((entry) => entry.slotIndex)).toEqual([1, 0, 3, 2]);
+    expect(ordered[0].item.startWithThis).toBe(true);
     expect(ordered.slice(0, 2).every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
   });
 
@@ -434,8 +420,11 @@ describe('C5 start with this', () => {
     for (const person of people) {
       const plan = buildPlan(person);
       const displayed = practicesForDisplay(plan.items);
+      const flagged = displayed.filter((entry) => entry.item.startWithThis);
       const nonShareCount = displayed.filter((entry) => !isShareWithGroupCategory(entry.item.category)).length;
       const guarded = displayed.slice(0, Math.min(2, nonShareCount));
+      expect(flagged.every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
+      expect(displayed.slice(0, flagged.length).every((entry) => entry.item.startWithThis)).toBe(true);
       expect(guarded.every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
     }
   });

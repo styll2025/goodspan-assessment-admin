@@ -2062,11 +2062,11 @@ function SettingsView({
                 <strong>Already close</strong> — are they already doing a little of this, so the gap to a first success is short?
               </li>
               <li>
-                <strong>Matches their stated barrier</strong> — e.g. low-time answers favor low-effort practices; "I lose motivation without support" favors the Circle practice; "I prefer to do things on my own" means the Circle practice is never flagged (it still stays in their 5 practices either way — this only affects which ones are recommended as a starting point).
+                <strong>Matches their stated barrier</strong> — e.g. low-time answers favor low-effort practices. Share and other group practices are never flagged as a recommended starting point; they still stay in the five practices.
               </li>
             </ul>
-            <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
-            <p>Share and other group practices are never shown as the first or second practice. They are placed from the third option onwards, even if one of them is flagged as a recommended starting point.</p>
+            <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, Share and other group practices can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
+            <p>Flagged recommended starting points are shown first. Share and other group practices are listed from the third practice onwards — never first or second.</p>
           </div>
 
           <StartWithThisControls
@@ -2392,7 +2392,7 @@ function StartWithThisControls({
 
       <div className="subBlock">
         <strong>Minimum visibility to be eligible</strong>
-        <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. The Circle-practice exclusion for “I prefer to do things on my own” stays on, and a plan is never forced to reach the flag count.</p>
+        <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. Share and other group practices are never flagged either, and a plan is never forced to reach the flag count.</p>
         <div className="mappingRow">
           <span>Eligible from</span>
           <div className="seg">
@@ -2462,7 +2462,7 @@ function StartWithThisControls({
           step={1}
           left="No bonus"
           right="Strong bonus"
-          desc="Points added when a practice matches one of the barrier-based rules, such as low time favoring effort 1, or lack of accountability favoring the Circle practice."
+          desc="Points added when a practice matches one of the barrier-based rules, such as low time favoring effort 1."
           onChange={(value) => update((next) => { next.startWithThis.barrierMatchBonus = value; })}
         />
       </details>

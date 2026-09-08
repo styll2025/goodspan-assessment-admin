@@ -557,12 +557,6 @@ export function startScore(
   if (barriers.includes('My schedule changes a lot') && effort === 1) score += bonus;
   if (barriers.includes('I struggle to stay consistent') && effort === 1) score += bonus;
   if (barriers.includes("I don't know where to start") && effort === 1 && visibility >= 2) score += bonus;
-  if (
-    barriers.includes('I lose motivation without support or accountability') &&
-    SOCIAL_CATEGORIES[pillarId].includes(item.category)
-  ) {
-    score += bonus;
-  }
 
   return score;
 }
@@ -574,12 +568,10 @@ export function flagStartWithThis(
   settings: MatchingSettings = DEFAULT_SETTINGS,
 ): PlanItem[] {
   const start = startWithThisSettings(settings);
-  const preferAlone = (respondent.barriers ?? []).includes('I prefer to do things on my own');
-  const socialNames = SOCIAL_CATEGORIES[pillarId];
   const eligible = planItems.filter((item) => {
     const visibility = item.practice.visibility;
     if (!Number.isInteger(visibility) || visibility < start.minVisibility) return false;
-    if (preferAlone && socialNames.includes(item.category)) return false;
+    if (isShareWithGroupCategory(item.category)) return false;
     return true;
   });
   const ranked = [...eligible].sort((a, b) => {
