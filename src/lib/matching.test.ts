@@ -460,7 +460,7 @@ describe('C5 start with this', () => {
       evidenceType: 'Experimental + observational',
       evidenceFit: 'Direct',
     });
-    expect(['gentle', 'moderate', 'deep'].map((level) => practicesForLevel(screentime, level)[0]?.text)).toEqual([
+    expect((['gentle', 'moderate', 'deep'] as const).map((level) => practicesForLevel(screentime, level)[0]?.text)).toEqual([
       screentime[0].text,
       screentime[0].text,
       screentime[0].text,
