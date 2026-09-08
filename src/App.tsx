@@ -2049,7 +2049,7 @@ function SettingsView({
         </div>
         <div className="settingBody">
           <div className="startCopy">
-            <p>Every plan includes 5 practices, chosen based on what this person needs most. Separately, 1–2 of those 5 are flagged as good practices to begin with — not the most important ones, but the ones most likely to actually work quickly for this specific person.</p>
+            <p>Every plan includes 5 practices, chosen based on what this person needs most. Separately, 2 of those 5 are flagged as good practices to begin with — not the most important ones, but the ones most likely to actually work quickly for this specific person.</p>
             <p>A practice is flagged when it scores well on:</p>
             <ul>
               <li>
@@ -2065,7 +2065,7 @@ function SettingsView({
                 <strong>Matches their stated barrier</strong> — e.g. low-time answers favor low-effort practices. Share and other group practices are never flagged as a recommended starting point; they still stay in the five practices.
               </li>
             </ul>
-            <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: a practice below the minimum visibility threshold can never be flagged, Share and other group practices can never be flagged, and a plan can end up with zero flagged practices rather than force a weak pick.</p>
+            <p>Two rules below can't be turned off, because they're guardrails, not tuning knobs: Share and other group practices can never be flagged, and every member gets two recommended starting points. If fewer than two practices meet the minimum visibility threshold, the next-best non-share practices are still flagged so the count stays at two.</p>
             <p>Flagged recommended starting points are shown first. Share and other group practices are listed from the third practice onwards — never first or second.</p>
           </div>
 
@@ -2354,7 +2354,7 @@ function StartWithThisControls({
     <>
       <div className="subBlock startPresetsBlock">
         <strong>Preset</strong>
-        <p>Sets the four scoring weights at once. Flags per plan and minimum visibility stay as you set them.</p>
+        <p>Sets the four scoring weights at once. Minimum visibility stays as you set it.</p>
         <div className="startPresets" role="radiogroup" aria-label={`${START_FLAG_LABEL} weighting preset`}>
           {START_WEIGHT_PRESET_ORDER.map((id) => (
             <button
@@ -2377,22 +2377,9 @@ function StartWithThisControls({
         </div>
       </div>
 
-      <SettingSlider
-        label="Flags per plan"
-        value={settings.startWithThis.flagsPerPlan}
-        display={String(settings.startWithThis.flagsPerPlan)}
-        min={0}
-        max={3}
-        step={1}
-        left="None"
-        right="Up to 3"
-        desc={`Maximum number of practices flagged ${START_FLAG_LABEL}. A plan can still receive fewer — including none — if too few practices clear the gates.`}
-        onChange={(value) => update((next) => { next.startWithThis.flagsPerPlan = value; })}
-      />
-
       <div className="subBlock">
         <strong>Minimum visibility to be eligible</strong>
-        <p>The hard gate. A practice below this score can never be flagged, regardless of effort or bonuses. Share and other group practices are never flagged either, and a plan is never forced to reach the flag count.</p>
+        <p>Preferred first. Practices below this score are only flagged if fewer than two practices already qualify, so every member still gets two recommended starting points. Share and other group practices are never flagged.</p>
         <div className="mappingRow">
           <span>Eligible from</span>
           <div className="seg">

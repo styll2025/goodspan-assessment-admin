@@ -140,6 +140,8 @@ export const BARRIER_OPTIONS: Barrier[] = [
 
 export const AGE_BAND_ORDER: Respondent['ageBand'][] = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
+export const START_FLAGS_PER_PLAN = 2;
+
 export const DEFAULT_SETTINGS: MatchingSettings = {
   statedGoalWeight: 0.25,
   challengeBoost: 0.15,
@@ -568,18 +570,20 @@ export function flagStartWithThis(
   settings: MatchingSettings = DEFAULT_SETTINGS,
 ): PlanItem[] {
   const start = startWithThisSettings(settings);
-  const eligible = planItems.filter((item) => {
-    const visibility = item.practice.visibility;
-    if (!Number.isInteger(visibility) || visibility < start.minVisibility) return false;
-    if (isShareWithGroupCategory(item.category)) return false;
-    return true;
-  });
-  const ranked = [...eligible].sort((a, b) => {
-    const delta = startScore(b, pillarId, respondent, settings) - startScore(a, pillarId, respondent, settings);
+  const byStartScore = (left: PlanItem, right: PlanItem) => {
+    const delta = startScore(right, pillarId, respondent, settings) - startScore(left, pillarId, respondent, settings);
     if (delta !== 0) return delta;
-    return planItems.indexOf(a) - planItems.indexOf(b);
+    return planItems.indexOf(left) - planItems.indexOf(right);
+  };
+
+  const nonShare = planItems.filter((item) => !isShareWithGroupCategory(item.category));
+  const preferred = nonShare.filter((item) => {
+    const visibility = item.practice.visibility;
+    return Number.isInteger(visibility) && visibility >= start.minVisibility;
   });
-  const flagged = new Set(ranked.slice(0, Math.min(start.flagsPerPlan, ranked.length)));
+  const fallback = nonShare.filter((item) => !preferred.includes(item));
+  const ranked = [...preferred].sort(byStartScore).concat([...fallback].sort(byStartScore));
+  const flagged = new Set(ranked.slice(0, Math.min(START_FLAGS_PER_PLAN, ranked.length)));
   return planItems.map((item) => ({ ...item, startWithThis: flagged.has(item) }));
 }
 

@@ -188,6 +188,7 @@ describe('C5 start with this', () => {
     ];
     const flagged = flagStartWithThis(items, 'sleep', person);
     expect(flagged.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(false);
+    expect(flagged.filter((entry) => entry.startWithThis)).toHaveLength(2);
     expect(flagged.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
   });
 
@@ -240,12 +241,12 @@ describe('C5 start with this', () => {
 
     for (const flagged of [byDefault, withAccountability, preferAlone]) {
       expect(flagged.find((entry) => entry.category === socialCategory)?.startWithThis).toBe(false);
-      expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
+      expect(flagged.filter((entry) => entry.startWithThis)).toHaveLength(2);
     }
   });
 
-  it('flags 0, 1, or 2 practices depending on the plan, and never more than 2', () => {
-    const none = flagStartWithThis(
+  it('always flags two recommended starting points, filling from lower visibility only if needed', () => {
+    const nonePreferred = flagStartWithThis(
       [
         item('Sleep Environment', { text: 'a', effort: 1, visibility: 1 }),
         item('Sleep Pressure', { text: 'b', effort: 1, visibility: 1 }),
@@ -254,7 +255,7 @@ describe('C5 start with this', () => {
       'sleep',
       respondent(),
     );
-    const one = flagStartWithThis(
+    const onePreferred = flagStartWithThis(
       [
         item('Sleep Environment', { text: 'visible', effort: 2, visibility: 2 }),
         item('Sleep Pressure', { text: 'hidden', effort: 1, visibility: 1 }),
@@ -263,7 +264,7 @@ describe('C5 start with this', () => {
       'sleep',
       respondent(),
     );
-    const two = flagStartWithThis(
+    const twoPreferred = flagStartWithThis(
       [
         item('Sleep Environment', { text: 'a', effort: 1, visibility: 2 }),
         item('Sleep Pressure', { text: 'b', effort: 1, visibility: 3 }),
@@ -272,22 +273,23 @@ describe('C5 start with this', () => {
       'sleep',
       respondent(),
     );
-    expect(none.filter((entry) => entry.startWithThis)).toHaveLength(0);
-    expect(one.filter((entry) => entry.startWithThis)).toHaveLength(1);
-    expect(two.filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(nonePreferred.filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(onePreferred.filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(onePreferred.find((entry) => entry.practice.visibility === 2)?.startWithThis).toBe(true);
+    expect(twoPreferred.filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(twoPreferred.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
 
     generateSampleRespondents().forEach((person) => {
       const plan = buildPlan(person, DEFAULT_SETTINGS);
       const flagged = plan.items.filter((entry) => entry.startWithThis);
-      expect(flagged.length).toBeGreaterThanOrEqual(0);
-      expect(flagged.length).toBeLessThanOrEqual(2);
+      expect(flagged).toHaveLength(2);
       expect(plan.items).toHaveLength(5);
       plan.items.forEach((entry) => {
         expect([1, 2, 3]).toContain(entry.practice.effort);
         expect([1, 2, 3]).toContain(entry.practice.visibility);
       });
       flagged.forEach((entry) => {
-        expect(entry.practice.visibility).toBeGreaterThanOrEqual(2);
+        expect(isShareWithGroupCategory(entry.category)).toBe(false);
       });
     });
   });
@@ -319,6 +321,7 @@ describe('C5 start with this', () => {
         item('Incidental Movement & Sedentary Behavior', { text: 'also low vis', effort: 1, visibility: 1 }),
         item('Structured Cardio', { text: 'also low vis 2', effort: 1, visibility: 1 }),
         item('Strength & Resistance', { text: 'high effort visible', effort: 3, visibility: 2 }),
+        item('Mobility, Flexibility & Balance', { text: 'also visible', effort: 2, visibility: 2 }),
         item('Social & Accountability', { text: 'circle', effort: 2, visibility: 2 }),
       ],
       'move',
@@ -327,33 +330,36 @@ describe('C5 start with this', () => {
 
     const trackerItem = flagged.find((entry) => entry.practice.text.startsWith('Use a step tracker'));
     expect(trackerItem?.startWithThis).toBe(false);
+    expect(flagged.filter((entry) => entry.startWithThis)).toHaveLength(2);
     expect(flagged.filter((entry) => entry.startWithThis).every((entry) => entry.practice.visibility >= 2)).toBe(true);
-    expect(flagged.some((entry) => entry.startWithThis)).toBe(true);
+    expect(flagged.filter((entry) => entry.startWithThis).every((entry) => !isShareWithGroupCategory(entry.category))).toBe(true);
   });
 
-  it('respects flagsPerPlan, including zero, without forcing a count', () => {
+  it('always flags two recommended starting points, even if flagsPerPlan is set lower', () => {
     const items = [
       item('Sleep Environment', { text: 'a', effort: 1, visibility: 2 }),
       item('Sleep Pressure', { text: 'b', effort: 1, visibility: 3 }),
       item('Wind Down', { text: 'c', effort: 2, visibility: 2 }),
     ];
     const person = respondent();
-    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 0 })).filter((entry) => entry.startWithThis)).toHaveLength(0);
-    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 1 })).filter((entry) => entry.startWithThis)).toHaveLength(1);
-    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 3 })).filter((entry) => entry.startWithThis)).toHaveLength(3);
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 0 })).filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 1 })).filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(flagStartWithThis(items, 'sleep', person, settingsWithStart({ flagsPerPlan: 3 })).filter((entry) => entry.startWithThis)).toHaveLength(2);
   });
 
-  it('lets a visibility=1 practice be flagged only when the minimum visibility setting is 1', () => {
+  it('prefers practices at the minimum visibility, then fills to two if needed', () => {
     const person = respondent({ barriers: ["I don't have much time"] });
     const items = [
       item('Sleep Environment', { text: 'track steps baseline', effort: 1, visibility: 1 }),
       item('Sleep Pressure', { text: 'higher effort visible', effort: 3, visibility: 2 }),
     ];
-    const blocked = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 2, flagsPerPlan: 1 }));
-    const allowed = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 1, flagsPerPlan: 1 }));
-    expect(blocked.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(false);
+    const blocked = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 2 }));
+    const allowed = flagStartWithThis(items, 'sleep', person, settingsWithStart({ minVisibility: 1 }));
+    expect(blocked.filter((entry) => entry.startWithThis)).toHaveLength(2);
     expect(blocked.find((entry) => entry.practice.visibility === 2)?.startWithThis).toBe(true);
+    expect(blocked.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(true);
     expect(allowed.find((entry) => entry.practice.visibility === 1)?.startWithThis).toBe(true);
+    expect(allowed.filter((entry) => entry.startWithThis)).toHaveLength(2);
   });
 
   it('uses effort and visibility weights from settings in the score formula', () => {
@@ -361,28 +367,32 @@ describe('C5 start with this', () => {
     const items = [
       item('Sleep Environment', { text: 'easy quieter benefit', effort: 1, visibility: 2 }),
       item('Sleep Pressure', { text: 'harder felt benefit', effort: 3, visibility: 3 }),
+      item('Wind Down', { text: 'middle', effort: 2, visibility: 2 }),
     ];
     const effortLed = flagStartWithThis(
       items,
       'sleep',
       person,
-      settingsWithStart({ effortWeight: 4, visibilityWeight: 0, flagsPerPlan: 1, habitProximityBonus: 0, barrierMatchBonus: 0 }),
+      settingsWithStart({ effortWeight: 4, visibilityWeight: 0, habitProximityBonus: 0, barrierMatchBonus: 0 }),
     );
     const visibilityLed = flagStartWithThis(
       items,
       'sleep',
       person,
-      settingsWithStart({ effortWeight: 0, visibilityWeight: 4, flagsPerPlan: 1, habitProximityBonus: 0, barrierMatchBonus: 0 }),
+      settingsWithStart({ effortWeight: 0, visibilityWeight: 4, habitProximityBonus: 0, barrierMatchBonus: 0 }),
     );
+    expect(effortLed.filter((entry) => entry.startWithThis)).toHaveLength(2);
     expect(effortLed.find((entry) => entry.practice.effort === 1)?.startWithThis).toBe(true);
+    expect(effortLed.find((entry) => entry.practice.effort === 3)?.startWithThis).toBe(false);
+    expect(visibilityLed.filter((entry) => entry.startWithThis)).toHaveLength(2);
     expect(visibilityLed.find((entry) => entry.practice.visibility === 3)?.startWithThis).toBe(true);
   });
 
-  it('passes start-with-this settings through buildPlan', () => {
+  it('passes start-with-this settings through buildPlan and still flags two practices', () => {
     const person = respondent({ barriers: ["I don't have much time"] });
-    const none = buildPlan(person, settingsWithStart({ flagsPerPlan: 0 }));
-    expect(none.items.filter((entry) => entry.startWithThis)).toHaveLength(0);
-    expect(none.items).toHaveLength(5);
+    const plan = buildPlan(person, settingsWithStart({ flagsPerPlan: 0 }));
+    expect(plan.items.filter((entry) => entry.startWithThis)).toHaveLength(2);
+    expect(plan.items).toHaveLength(5);
   });
 
   it('lists recommended starting points first, then keeps Share from the third slot onwards', () => {
@@ -424,6 +434,7 @@ describe('C5 start with this', () => {
       const nonShareCount = displayed.filter((entry) => !isShareWithGroupCategory(entry.item.category)).length;
       const guarded = displayed.slice(0, Math.min(2, nonShareCount));
       expect(flagged.every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
+      expect(flagged).toHaveLength(Math.min(2, nonShareCount));
       expect(displayed.slice(0, flagged.length).every((entry) => entry.item.startWithThis)).toBe(true);
       expect(guarded.every((entry) => !isShareWithGroupCategory(entry.item.category))).toBe(true);
     }
