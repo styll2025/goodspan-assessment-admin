@@ -72,15 +72,18 @@ export function localCityName(location: string): string {
   return city || displayLocation(location);
 }
 
-export function satelliteCities(locations: string[], hub: string): string[] {
-  const hubCity = localCityName(hub).toLowerCase();
+export function uniqueMemberCities(locations: string[]): string[] {
   const seen = new Set<string>();
   locations.forEach((location) => {
     const name = localCityName(location);
-    if (name.toLowerCase() === hubCity) return;
-    seen.add(name);
+    if (name) seen.add(name);
   });
   return [...seen].sort((a, b) => a.localeCompare(b));
+}
+
+export function satelliteCities(locations: string[], hub: string): string[] {
+  const hubCity = localCityName(hub).toLowerCase();
+  return uniqueMemberCities(locations).filter((name) => name.toLowerCase() !== hubCity);
 }
 
 function findPlace(location: string): Place | null {

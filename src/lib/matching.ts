@@ -1,5 +1,5 @@
 import practicesData from '../data/practices-data.json';
-import { clusterCity } from './cities';
+import { uniqueMemberCities } from './cities';
 import type {
   Barrier,
   Challenge,
@@ -316,28 +316,32 @@ export function buildPlan(
   };
 }
 
+export const CIRCLE_LOCATION_KEY = 'all';
+
+export function circleLocationLabel(members: Respondent[]): string {
+  return uniqueMemberCities(members.map((member) => member.location)).join(', ') || 'unspecified';
+}
+
 export function autoCluster(
   respondents: Respondent[],
   plans: Map<string, Plan>,
   settings: MatchingSettings = DEFAULT_SETTINGS,
 ): Circle[] {
-  const buckets = new Map<string, { pillarId: Pillar; city: string; people: Respondent[] }>();
+  const buckets = new Map<Pillar, Respondent[]>();
   respondents.forEach((respondent) => {
     const plan = plans.get(respondent.id);
     if (!plan) return;
-    const city = clusterCity(respondent.location);
-    const key = `${plan.pillarId}|${city}`;
-    const bucket = buckets.get(key) ?? { pillarId: plan.pillarId, city, people: [] };
-    bucket.people.push(respondent);
-    buckets.set(key, bucket);
+    const people = buckets.get(plan.pillarId) ?? [];
+    people.push(respondent);
+    buckets.set(plan.pillarId, people);
   });
 
-  return [...buckets.values()].flatMap((bucket) =>
-    buildDiverseGroups(bucket.people, settings).map((group, groupIndex) => ({
-      id: circleId(bucket.pillarId, bucket.city, groupIndex),
-      pillarId: bucket.pillarId,
-      city: bucket.city || 'unspecified',
+  return [...buckets.entries()].flatMap(([pillarId, people]) =>
+    buildDiverseGroups(people, settings).map((group, groupIndex) => ({
+      id: circleId(pillarId, CIRCLE_LOCATION_KEY, groupIndex),
+      pillarId,
       ...group,
+      city: circleLocationLabel(group.members),
     })),
   );
 }
@@ -388,6 +392,7 @@ export function applyCircleOverrides(
     .filter((circle) => circle.members.length > 0)
     .map((circle) => ({
       ...circle,
+      city: circleLocationLabel(circle.members),
       needsMore: circle.members.length < settings.minCircleSize,
       mixed: circle.members.length > settings.maxCircleSize,
     }));

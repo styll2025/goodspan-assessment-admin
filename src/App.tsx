@@ -19,12 +19,13 @@ import {
   cloneSettings,
   computeRecommendation,
   matchedChallengeTerms,
+  CIRCLE_LOCATION_KEY,
   newCircleId,
   normalizeRespondent,
   practicesForDisplay,
   suggestCircleFor,
 } from './lib/matching';
-import { satelliteCities } from './lib/cities';
+import { uniqueMemberCities } from './lib/cities';
 import { generateSampleRespondents } from './lib/sampleData';
 import { downloadXlsx } from './lib/xlsx';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, StartWithThisSettings, TimePerDay } from './types';
@@ -533,7 +534,7 @@ function RespondentPlan({
   const pillarTint = PILLAR_TINT[plan.pillarId];
   const circleCaption = circleMembers.length
     ? `${circleMembers.length} ${circleMembers.length === 1 ? 'other' : 'others'} in their proposed Circle · ${circle?.city ?? respondent.location}`
-    : `No circle yet — needs more people in this city on ${GOOD_PILLAR_LABEL[plan.pillarId]}`;
+    : `No circle yet — needs more people on ${GOOD_PILLAR_LABEL[plan.pillarId]}`;
   const goalRows: Array<[string, string]> = [
     ['Focus area', respondent.focusArea === 'unsure' ? "I'm not sure" : GOOD_PILLAR_LABEL[respondent.focusArea]],
     ['Time available', labelForTime(respondent.timePerDay)],
@@ -1173,10 +1174,9 @@ function CirclesView({
         <p className="eyebrow">Auto-clustered</p>
         <h1>Suggested Circles</h1>
         <p>
-          These Circles belong to the {FOUNDING_SPAN_LABEL}, {FOUNDING_SPAN_START}. People are grouped first by Span and city — treating nearby
-          places within 50 km as the same city, so Cascais and Caparica sit with Lisbon. A small city-and-Span group stays
-          in one Circle so that Span can fill, instead of being split by personality or other traits. Larger groups are
-          then mixed across age, gender, personality, life stage, work and home life. Groups run{' '}
+          These Circles belong to the {FOUNDING_SPAN_LABEL}, {FOUNDING_SPAN_START}. People are grouped by Span. A small
+          Span group stays in one Circle so that Span can fill, instead of being split by personality or other traits.
+          Larger groups are then mixed across age, gender, personality, life stage, work and home life. Groups run{' '}
           {numberWord(settings.minCircleSize)} to {numberWord(settings.maxCircleSize)} people.
         </p>
         {moveCount > 0 && (
@@ -1205,12 +1205,11 @@ function CirclesView({
                   <Pill label={GOOD_PILLAR_LABEL[circle.pillarId]} tone={circle.pillarId} />
                   <span className="circleIndex">{FOUNDING_SPAN_NAMED} · Circle {index + 1}</span>
                 </div>
-                <h3>{circle.city}</h3>
                 {(() => {
-                  const extras = satelliteCities(circle.members.map((member) => member.location), circle.city);
-                  return extras.length
-                    ? <p className="circleSatellites">Includes {joinNames(extras)}</p>
-                    : null;
+                  const places = uniqueMemberCities(circle.members.map((member) => member.location));
+                  return places.length
+                    ? <h3>{joinNames(places)}</h3>
+                    : <h3>Location not specified</h3>;
                 })()}
                 <p className="circleSize" style={{ color: circle.needsMore || circle.mixed ? '#B4482E' : '#5A5F56' }}>
                   {sizeLabel}
@@ -1234,12 +1233,12 @@ function CirclesView({
                           >
                             {circles.map((option, optionIndex) => (
                               <option key={option.id} value={option.id}>
-                                Circle {optionIndex + 1} · {GOOD_PILLAR_LABEL[option.pillarId]} · {option.city}
+                                Circle {optionIndex + 1} · {GOOD_PILLAR_LABEL[option.pillarId]}
                                 {option.id === circle.id ? ' · current' : ''}
                               </option>
                             ))}
-                            <option value={nextManualCircleId(circles, circle.pillarId, circle.city)}>
-                              New Circle · {GOOD_PILLAR_LABEL[circle.pillarId]} · {circle.city}
+                            <option value={nextManualCircleId(circles, circle.pillarId)}>
+                              New Circle · {GOOD_PILLAR_LABEL[circle.pillarId]}
                             </option>
                           </select>
                         </label>
@@ -1272,8 +1271,8 @@ function CircleOverview({
   plans: Map<string, Plan>;
   onBack: () => void;
 }) {
-  const city = circle.city;
-  const extras = satelliteCities(circle.members.map((member) => member.location), city);
+  const places = uniqueMemberCities(circle.members.map((member) => member.location));
+  const placeLabel = places.length ? joinNames(places) : '';
   const spanLabel = GOOD_PILLAR_LABEL[circle.pillarId];
   const shared = sharedCirclePractices(circle.members, plans);
   useDownloadTitle(`GoodSpan Founding Span ${FOUNDING_SPAN_DATE_SHORT} - ${spanLabel} - Circle ${index + 1} Overview`);
@@ -1283,7 +1282,7 @@ function CircleOverview({
       <div className="planToolbar" data-noprint>
         <button onClick={onBack}>← Back to Circles</button>
         <div>
-          <span>Circle {index + 1} · {spanLabel} · {city}</span>
+          <span>Circle {index + 1} · {spanLabel}</span>
           <button className="primary" onClick={() => window.print()}>Download Overview</button>
         </div>
       </div>
@@ -1304,7 +1303,7 @@ function CircleOverview({
             This document contains member information belonging to The Good Span. Please keep all information contained herein strictly confidential.
           </p>
           <div className="planHeroMeta">
-            <Meta label="Circle" value={`${index + 1} · ${city}`} />
+            <Meta label="Circle" value={placeLabel ? `${index + 1} · ${placeLabel}` : String(index + 1)} />
             <Meta label={FOUNDING_SPAN_LABEL} value={`${spanLabel} · ${FOUNDING_SPAN_START}`} />
             <Meta label="Members" value={String(circle.members.length)} />
           </div>
@@ -1315,12 +1314,12 @@ function CircleOverview({
         <PlanSection number="1" title="This Circle">
           <p>
             {circle.members.length === 1
-              ? `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} in ${city} and currently has one member.`
-              : `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} in ${city} and has ${numberWord(circle.members.length)} members.`}
+              ? `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} and currently has one member.`
+              : `This ${spanLabel} Circle is part of the ${FOUNDING_SPAN_LABEL} and has ${numberWord(circle.members.length)} members.`}
             {circle.needsMore ? ' It is flagged as needing more people before it feels complete.' : ''}
             {circle.mixed ? ' It is large enough that you may want to consider splitting it.' : ''}
           </p>
-          {extras.length > 0 && <p>This city cluster also includes {joinNames(extras)}.</p>}
+          {placeLabel && <p>Members are in {placeLabel}.</p>}
           <p>The members are {joinNames(circle.members.map((member) => member.preferredName || 'Unnamed'))}.</p>
         </PlanSection>
 
@@ -1420,7 +1419,7 @@ function CircleOverview({
             This pack is for the Span Lead. Please keep all member plans strictly confidential.
           </p>
           <div className="planHeroMeta">
-            <Meta label="Circle" value={`${index + 1} · ${city}`} />
+            <Meta label="Circle" value={placeLabel ? `${index + 1} · ${placeLabel}` : String(index + 1)} />
             <Meta label="Members" value={String(circle.members.length)} />
             <Meta label="Contents" value="One plan per member, as distributed" />
           </div>
@@ -1454,12 +1453,12 @@ function CircleOverview({
   );
 }
 
-function nextManualCircleId(circles: Circle[], pillarId: Pillar, city: string): string {
+function nextManualCircleId(circles: Circle[], pillarId: Pillar): string {
   let n = 1;
-  let id = newCircleId(pillarId, city, String(n));
+  let id = newCircleId(pillarId, CIRCLE_LOCATION_KEY, String(n));
   while (circles.some((circle) => circle.id === id)) {
     n += 1;
-    id = newCircleId(pillarId, city, String(n));
+    id = newCircleId(pillarId, CIRCLE_LOCATION_KEY, String(n));
   }
   return id;
 }
@@ -2087,8 +2086,8 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Circle formation</h2>
-          <p>People are first grouped by Span and city. Nearby places within 50 km count as the same city — Cascais and Caparica join Lisbon.</p>
-          <p>If only a few people in that city are on the same Span, they stay in one Circle so the Span can fill. We only split into another same-Span Circle when the group is larger than the maximum size. Personality and other traits are used to mix those larger splits, not to create extra small Circles.</p>
+          <p>People are grouped by Span. Location is not used when assigning Circles.</p>
+          <p>If only a few people are on the same Span, they stay in one Circle so the Span can fill. We only split into another same-Span Circle when the group is larger than the maximum size. Personality and other traits are used to mix those larger splits, not to create extra small Circles.</p>
           <button
             type="button"
             className="danger"
@@ -2134,11 +2133,11 @@ function SettingsView({
           ))}
           <div className="groupSizeHead">
             <div>Group size, in people</div>
-            <p>A city-and-Span group stays together until it is larger than the maximum. Groups are then flagged if they fall outside the minimum or maximum.</p>
+            <p>A Span group stays together until it is larger than the maximum. Groups are then flagged if they fall outside the minimum or maximum.</p>
           </div>
           <WeightRow
             label="Target size"
-            desc="Circles per city and Span are formed at roughly this size."
+            desc="Circles per Span are formed at roughly this size."
             min={4}
             max={10}
             step={1}
@@ -2307,7 +2306,7 @@ function SettingsView({
           <div className="toggleInfo first">
             <div>
               <strong>Load sample data</strong>
-              <p>Replaces the current list with 30 generated members, grouped into city and Span cohorts so Circles can actually form.</p>
+              <p>Replaces the current list with 30 generated members, grouped into Span cohorts so Circles can actually form.</p>
             </div>
             <button className="sampleBtn" type="button" onClick={onSample}>Load sample</button>
           </div>

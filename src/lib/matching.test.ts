@@ -11,6 +11,7 @@ import {
   buildPlan,
   cloneSettings,
   computeRecommendation,
+  CIRCLE_LOCATION_KEY,
   flagStartWithThis,
   newCircleId,
   practicesForDisplay,
@@ -484,19 +485,20 @@ describe('E circle diversity', () => {
     expect(groups.reduce((total, group) => total + group.members.length, 0)).toBe(10);
   });
 
-  it('clusters Cascais and Caparica with Lisbon, then groups by Span', () => {
+  it('groups the same Span together regardless of city', () => {
     const people = [
       respondent({ id: 'lis', preferredName: 'Lisbon person', location: 'Lisbon, Portugal', focusArea: 'mind' }),
       respondent({ id: 'cas', preferredName: 'Cascais person', location: 'Cascais, Portugal', focusArea: 'mind' }),
       respondent({ id: 'cap', preferredName: 'Caparica person', location: 'Costa da Caparica, Portugal', focusArea: 'mind' }),
       respondent({ id: 'por', preferredName: 'Porto person', location: 'Porto, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'eat', preferredName: 'Eat person', location: 'Lisbon, Portugal', focusArea: 'eat' }),
     ];
-    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
+    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: person.focusArea as 'mind' | 'eat' })]));
     const circles = autoCluster(people, plans, DEFAULT_SETTINGS);
-    const lisbon = circles.find((circle) => circle.city.startsWith('Lisbon'));
-    const porto = circles.find((circle) => circle.city.startsWith('Porto'));
-    expect(lisbon?.members.map((member) => member.id).sort()).toEqual(['cap', 'cas', 'lis']);
-    expect(porto?.members.map((member) => member.id)).toEqual(['por']);
+    const mind = circles.find((circle) => circle.pillarId === 'mind');
+    const eat = circles.find((circle) => circle.pillarId === 'eat');
+    expect(mind?.members.map((member) => member.id).sort()).toEqual(['cap', 'cas', 'lis', 'por']);
+    expect(eat?.members.map((member) => member.id)).toEqual(['eat']);
   });
 
   it('applies an admin move into a new Circle without losing the member', () => {
@@ -507,7 +509,7 @@ describe('E circle diversity', () => {
     const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
     const auto = autoCluster(people, plans, DEFAULT_SETTINGS);
     expect(auto).toHaveLength(1);
-    const target = newCircleId('mind', auto[0].city, 'group');
+    const target = newCircleId('mind', CIRCLE_LOCATION_KEY, 'group');
     const moved = applyCircleOverrides(auto, { a: target }, DEFAULT_SETTINGS);
     expect(moved).toHaveLength(2);
     expect(moved.find((circle) => circle.id === target)?.members.map((member) => member.id)).toEqual(['a']);
