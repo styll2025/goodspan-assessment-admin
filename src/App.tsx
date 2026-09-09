@@ -15,6 +15,9 @@ import {
   TIME_TO_LEVEL,
   applyCircleOverrides,
   autoCluster,
+  moveCircleMemberIn,
+  movedCircleIds,
+  snapshotCircleOverrides,
   buildPlan,
   cloneSettings,
   computeRecommendation,
@@ -182,6 +185,10 @@ export default function App() {
     () => applyCircleOverrides(autoCircles, circleOverrides, settings),
     [autoCircles, circleOverrides, settings],
   );
+  const movedIds = useMemo(
+    () => movedCircleIds(circleOverrides, autoCircles),
+    [circleOverrides, autoCircles],
+  );
   const filtered = respondents.filter((respondent) => {
     const q = search.toLowerCase();
     return !q || respondent.preferredName.toLowerCase().includes(q) || respondent.location.toLowerCase().includes(q);
@@ -222,10 +229,12 @@ export default function App() {
       const ids = new Set(next.map((respondent) => respondent.id));
       setRespondents(next);
       setSelectedId((current) => (current && ids.has(current) ? current : next[0]?.id ?? ''));
-      setLevelOverrides((prev) => keepKeyedByMember(prev, ids));
-      setPillarOverrides((prev) => keepKeyedByMember(prev, ids));
-      setSwaps((prev) => keepSwapsForMembers(prev, ids));
-      setCircleOverrides((prev) => keepKeyedByMember(prev, ids));
+      if (next.length > 0) {
+        setLevelOverrides((prev) => keepKeyedByMember(prev, ids));
+        setPillarOverrides((prev) => keepKeyedByMember(prev, ids));
+        setSwaps((prev) => keepSwapsForMembers(prev, ids));
+        setCircleOverrides((prev) => keepKeyedByMember(prev, ids));
+      }
       setSheetConnected(true);
       setStatus(`${next.length} ${next.length === 1 ? 'member' : 'members'} from the assessment`);
     } catch (error) {
@@ -290,12 +299,10 @@ export default function App() {
   }
 
   function moveCircleMember(memberId: string, targetId: string) {
-    const home = autoCircles.find((circle) => circle.members.some((member) => member.id === memberId));
     setCircleOverrides((prev) => {
-      const next = { ...prev };
-      if (!targetId || (home && targetId === home.id)) delete next[memberId];
-      else next[memberId] = targetId;
-      return next;
+      const current = applyCircleOverrides(autoCircles, prev, settings);
+      const moved = moveCircleMemberIn(current, memberId, targetId, settings);
+      return snapshotCircleOverrides(moved);
     });
   }
 
@@ -445,7 +452,7 @@ export default function App() {
           circles={circles}
           respondentCount={respondents.length}
           settings={settings}
-          movedIds={circleOverrides}
+          movedIds={movedIds}
           onMoveMember={moveCircleMember}
           onOpenOverview={(circle, index) => setCircleOverview({ circle, index })}
         />
@@ -480,7 +487,7 @@ export default function App() {
           sheetConnected={sheetConnected}
           sheetLoading={sheetLoading}
           status={status}
-          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, circleOverrides)}
+          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, movedIds)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
           plans={plans}
@@ -1971,7 +1978,7 @@ function SettingsView({
       <section className="settingSection">
         <div>
           <h2>Data source</h2>
-          <p>Members come from the live assessment. This page refreshes them when you open it, and you can pull the latest responses without losing your manual changes.</p>
+          <p>Members come from the live assessment. This page refreshes them when you open it. Manual Circle moves stay in place even when new people join and the automatic grouping changes.</p>
         </div>
         <div className="settingBody">
           <div className="statusBox">

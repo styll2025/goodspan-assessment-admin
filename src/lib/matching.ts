@@ -407,21 +407,12 @@ export function applyCircleOverrides(
   Object.entries(overrides).forEach(([memberId, targetId]) => {
     if (!targetId) return;
     let target = byId.get(targetId);
-    if (!target && targetId.startsWith('manual:')) {
-      const parsed = parseManualCircleId(targetId);
-      if (!parsed) return;
-      target = {
-        id: targetId,
-        pillarId: parsed.pillarId,
-        city: parsed.city,
-        members: [],
-        needsMore: true,
-        mixed: false,
-      };
+    if (!target) {
+      target = createCircleFromId(targetId);
+      if (!target) return;
       next.push(target);
       byId.set(target.id, target);
     }
-    if (!target) return;
     const source = next.find((circle) => circle.members.some((member) => member.id === memberId));
     if (!source || source.id === target.id) return;
     const member = source.members.find((entry) => entry.id === memberId);
@@ -440,7 +431,76 @@ export function applyCircleOverrides(
     }));
 }
 
-function parseManualCircleId(id: string): { pillarId: Pillar; city: string } | null {
+export function moveCircleMemberIn(
+  circles: Circle[],
+  memberId: string,
+  targetId: string,
+  settings: MatchingSettings = DEFAULT_SETTINGS,
+): Circle[] {
+  if (!targetId) return circles;
+  const next = circles.map((circle) => ({ ...circle, members: [...circle.members] }));
+  const source = next.find((circle) => circle.members.some((member) => member.id === memberId));
+  if (!source) return circles;
+  let target = next.find((circle) => circle.id === targetId);
+  if (!target) {
+    const created = createCircleFromId(targetId);
+    if (!created) return circles;
+    target = created;
+    next.push(target);
+  }
+  if (source.id !== target.id) {
+    const member = source.members.find((entry) => entry.id === memberId);
+    if (!member) return circles;
+    source.members = source.members.filter((entry) => entry.id !== memberId);
+    target.members = [...target.members, member];
+  }
+  return next
+    .filter((circle) => circle.members.length > 0)
+    .map((circle) => ({
+      ...circle,
+      city: circleLocationLabel(circle.members),
+      needsMore: circle.members.length < settings.minCircleSize,
+      mixed: circle.members.length > settings.maxCircleSize,
+    }));
+}
+
+export function snapshotCircleOverrides(circles: Circle[]): Record<string, string> {
+  const next: Record<string, string> = {};
+  circles.forEach((circle) => {
+    circle.members.forEach((member) => {
+      next[member.id] = circle.id;
+    });
+  });
+  return next;
+}
+
+export function movedCircleIds(
+  overrides: Record<string, string>,
+  autoCircles: Circle[],
+): Record<string, string> {
+  const next: Record<string, string> = {};
+  Object.entries(overrides).forEach(([memberId, targetId]) => {
+    if (!targetId) return;
+    const home = autoCircles.find((circle) => circle.members.some((member) => member.id === memberId));
+    if (!home || home.id !== targetId) next[memberId] = targetId;
+  });
+  return next;
+}
+
+function createCircleFromId(targetId: string): Circle | null {
+  const parsed = parseCircleId(targetId);
+  if (!parsed) return null;
+  return {
+    id: targetId,
+    pillarId: parsed.pillarId,
+    city: parsed.city,
+    members: [],
+    needsMore: true,
+    mixed: false,
+  };
+}
+
+function parseCircleId(id: string): { pillarId: Pillar; city: string } | null {
   const body = id.startsWith('manual:') ? id.slice('manual:'.length) : id;
   const [pillarId, ...rest] = body.split('::');
   if (!PILLARS.includes(pillarId as Pillar) || rest.length < 2) return null;

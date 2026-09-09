@@ -8,6 +8,8 @@ import {
   SOCIAL_CATEGORIES,
   applyCircleOverrides,
   autoCluster,
+  moveCircleMemberIn,
+  snapshotCircleOverrides,
   buildDiverseGroups,
   buildPlan,
   cloneSettings,
@@ -605,6 +607,44 @@ describe('E circle diversity', () => {
     expect(moved).toHaveLength(2);
     expect(moved.find((circle) => circle.id === target)?.members.map((member) => member.id)).toEqual(['a']);
     expect(moved.find((circle) => circle.id === auto[0].id)?.members.map((member) => member.id)).toEqual(['b']);
+  });
+
+  it('keeps a manual move when the original auto Circle no longer exists', () => {
+    const people = Array.from({ length: 10 }, (_, index) =>
+      respondent({
+        id: `over-${index}`,
+        preferredName: `Over ${index}`,
+        location: 'Lisbon, Portugal',
+        focusArea: 'mind',
+      }),
+    );
+    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
+    const auto = autoCluster(people, plans, DEFAULT_SETTINGS);
+    expect(auto.length).toBeGreaterThan(1);
+    const targetId = auto[1].id;
+    const laterPeople = people.slice(0, 2);
+    const laterPlans = new Map(laterPeople.map((person) => [person.id, plans.get(person.id)!]));
+    const laterAuto = autoCluster(laterPeople, laterPlans, DEFAULT_SETTINGS);
+    expect(laterAuto).toHaveLength(1);
+    expect(laterAuto[0].id).not.toBe(targetId);
+    const kept = applyCircleOverrides(laterAuto, { 'over-0': targetId }, DEFAULT_SETTINGS);
+    expect(kept.find((circle) => circle.id === targetId)?.members.map((member) => member.id)).toEqual(['over-0']);
+    expect(kept.find((circle) => circle.id === laterAuto[0].id)?.members.map((member) => member.id)).toEqual(['over-1']);
+  });
+
+  it('stores every member in the layout after a move so the grouping survives a refresh', () => {
+    const people = [
+      respondent({ id: 'a', preferredName: 'A', location: 'Lisbon, Portugal', focusArea: 'mind' }),
+      respondent({ id: 'b', preferredName: 'B', location: 'Lisbon, Portugal', focusArea: 'mind' }),
+    ];
+    const plans = new Map(people.map((person) => [person.id, buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'mind' })]));
+    const auto = autoCluster(people, plans, DEFAULT_SETTINGS);
+    const target = newCircleId('mind', CIRCLE_LOCATION_KEY, 'split');
+    const snapshot = snapshotCircleOverrides(moveCircleMemberIn(auto, 'a', target));
+    expect(snapshot).toEqual({ a: target, b: auto[0].id });
+    const kept = applyCircleOverrides(auto, snapshot, DEFAULT_SETTINGS);
+    expect(kept.find((circle) => circle.id === target)?.members.map((member) => member.id)).toEqual(['a']);
+    expect(kept.find((circle) => circle.id === auto[0].id)?.members.map((member) => member.id)).toEqual(['b']);
   });
 
   it('reuses the same clustering pass for per-person Circle lookup', () => {
