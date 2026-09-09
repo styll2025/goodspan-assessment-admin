@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PRACTICES } from './matching';
-import { applyPracticeEdits, practiceIdentity, practicePatchFrom, practiceSourceText } from './practiceBank';
+import { appendPracticeAdds, applyPracticeEdits, practiceIdentity, practicePatchFrom, practiceSourceText } from './practiceBank';
 
 describe('practice bank edits', () => {
   it('replaces wording and evidence without losing the original identity', () => {
@@ -41,6 +41,30 @@ describe('practice bank edits', () => {
       { pillarId: 'eat', category: 'Nourish', practice },
       { pillarId: 'eat', category: 'Rhythm', practice: { ...practice, why: 'Rewritten why.' } },
     )).toEqual({ category: 'Rhythm', why: 'Rewritten why.' });
+  });
+
+  it('appends a newly added practice, including a new category', () => {
+    const bank = appendPracticeAdds(PRACTICES, {
+      'added:1': {
+        pillarId: 'eat',
+        category: 'Nourish',
+        practice: {
+          ...PRACTICES.eat.Nourish[0],
+          text: 'Admin-added nourish practice.',
+        },
+      },
+      'added:2': {
+        pillarId: 'mind',
+        category: 'New circle check-in',
+        practice: {
+          ...PRACTICES.sleep.Screentime[0],
+          text: 'Write one sentence to a Circle member.',
+        },
+      },
+    });
+    expect(bank.eat.Nourish.some((practice) => practice.text === 'Admin-added nourish practice.')).toBe(true);
+    expect(bank.eat.Nourish).toHaveLength(PRACTICES.eat.Nourish.length + 1);
+    expect(bank.mind['New circle check-in'][0].text).toBe('Write one sentence to a Circle member.');
   });
 
   it('prefers references when showing evidence copy', () => {

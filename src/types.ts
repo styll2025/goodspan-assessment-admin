@@ -114,6 +114,12 @@ export type PracticePatch = {
   evidenceFit?: string;
 };
 
+export type PracticeAdd = {
+  pillarId: Pillar;
+  category: string;
+  practice: Practice;
+};
+
 export type Plan = {
   respondentId: string;
   pillarId: Pillar;

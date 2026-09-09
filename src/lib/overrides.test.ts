@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePracticeEdits, normalizeSwapRecord } from './overrides';
+import { normalizePracticeAdds, normalizePracticeEdits, normalizeSwapRecord } from './overrides';
 
 describe('normalizeSwapRecord', () => {
   it('keeps legacy string swaps and object swaps', () => {
@@ -31,6 +31,46 @@ describe('normalizeSwapRecord', () => {
         displayCategory: 'Evening rhythm',
         displayText: 'Leave screens in another room.',
         displayEvidence: 'Member-specific evidence.',
+      },
+    });
+  });
+});
+
+describe('normalizePracticeAdds', () => {
+  it('keeps complete added practices and drops invalid ones', () => {
+    expect(normalizePracticeAdds({
+      'added:1': {
+        pillarId: 'eat',
+        category: 'Nourish',
+        practice: {
+          level: 'gentle',
+          text: 'Admin-added practice.',
+          why: 'Because it helps.',
+          evidence: 'A citation summary.',
+          references: ['A citation.'],
+          effort: 1,
+          visibility: 2,
+          evidenceType: 'Review',
+          evidenceFit: 'Direct',
+        },
+      },
+      bad: { pillarId: 'eat', category: 'Nourish' },
+      empty: { pillarId: 'sleep', category: 'Screentime', practice: { text: '  ' } },
+    })).toEqual({
+      'added:1': {
+        pillarId: 'eat',
+        category: 'Nourish',
+        practice: {
+          level: 'gentle',
+          text: 'Admin-added practice.',
+          why: 'Because it helps.',
+          evidence: 'A citation summary.',
+          references: ['A citation.'],
+          effort: 1,
+          visibility: 2,
+          evidenceType: 'Review',
+          evidenceFit: 'Direct',
+        },
       },
     });
   });

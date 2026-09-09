@@ -1,4 +1,4 @@
-import type { Level, Pillar, Practice, PracticePatch, PracticesData } from '../types';
+import type { Level, Pillar, Practice, PracticeAdd, PracticePatch, PracticesData } from '../types';
 import { PILLARS, PRACTICES } from './matching';
 
 export function practiceIdentity(pillarId: Pillar, category: string, practice: Pick<Practice, 'level' | 'text'>): string {
@@ -42,6 +42,49 @@ export function applyPracticeEdits(
     });
   });
   return next;
+}
+
+export function appendPracticeAdds(
+  data: PracticesData,
+  adds: Record<string, PracticeAdd>,
+): PracticesData {
+  const entries = Object.values(adds);
+  if (!entries.length) return data;
+  const next = clonePractices(data);
+  entries.forEach((add) => {
+    const category = add.category.trim();
+    const text = add.practice.text.trim();
+    if (!category || !text) return;
+    const family = next[add.pillarId][category] ?? [];
+    family.push({
+      ...add.practice,
+      text,
+      references: [...add.practice.references],
+    });
+    next[add.pillarId][category] = family;
+  });
+  return next;
+}
+
+export function blankPractice(level: Level = 'moderate', effort: 1 | 2 | 3 = 2, visibility: 1 | 2 | 3 = 2): Practice {
+  return {
+    level,
+    text: '',
+    why: '',
+    evidence: '',
+    references: [],
+    effort,
+    visibility,
+    evidenceType: '',
+    evidenceFit: '',
+  };
+}
+
+export function newPracticeAddId(): string {
+  const unique = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `added:${unique}`;
 }
 
 export function practicePatchFrom(

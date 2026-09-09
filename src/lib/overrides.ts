@@ -1,4 +1,4 @@
-import type { Level, Pillar, PracticePatch, SlotSwap } from '../types';
+import type { Level, Pillar, Practice, PracticeAdd, PracticePatch, SlotSwap } from '../types';
 import { isLevelValue, isScoreValue } from './practiceBank';
 
 const OVERRIDES_KEY = 'gs_admin_overrides';
@@ -9,6 +9,7 @@ export type AdminOverrides = {
   pillarOverrides: Record<string, Pillar>;
   circleOverrides: Record<string, string>;
   practiceEdits: Record<string, PracticePatch>;
+  practiceAdds: Record<string, PracticeAdd>;
 };
 
 export const EMPTY_OVERRIDES: AdminOverrides = {
@@ -17,6 +18,7 @@ export const EMPTY_OVERRIDES: AdminOverrides = {
   pillarOverrides: {},
   circleOverrides: {},
   practiceEdits: {},
+  practiceAdds: {},
 };
 
 export function normalizeSwapRecord(value: unknown): Record<string, SlotSwap> {
@@ -64,6 +66,7 @@ export function loadAdminOverrides(): AdminOverrides {
       pillarOverrides: isPillarRecord(parsed.pillarOverrides) ? parsed.pillarOverrides : {},
       circleOverrides: isStringRecord(parsed.circleOverrides) ? parsed.circleOverrides : {},
       practiceEdits: normalizePracticeEdits(parsed.practiceEdits),
+      practiceAdds: normalizePracticeAdds(parsed.practiceAdds),
     };
   } catch {
     return EMPTY_OVERRIDES;
@@ -93,6 +96,52 @@ export function pruneAdminOverrides(overrides: AdminOverrides, memberIds: Set<st
     pillarOverrides: keepKeyedByMember(overrides.pillarOverrides, memberIds),
     circleOverrides: keepKeyedByMember(overrides.circleOverrides, memberIds),
     practiceEdits: overrides.practiceEdits,
+    practiceAdds: overrides.practiceAdds,
+  };
+}
+
+export function normalizePracticeAdds(value: unknown): Record<string, PracticeAdd> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const next: Record<string, PracticeAdd> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+    const add = normalizePracticeAdd(item);
+    if (add) next[key] = add;
+  });
+  return next;
+}
+
+function normalizePracticeAdd(value: unknown): PracticeAdd | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (record.pillarId !== 'sleep' && record.pillarId !== 'eat' && record.pillarId !== 'move' && record.pillarId !== 'mind') {
+    return null;
+  }
+  if (typeof record.category !== 'string' || !record.category.trim()) return null;
+  const practice = normalizeAddedPractice(record.practice);
+  if (!practice) return null;
+  return {
+    pillarId: record.pillarId,
+    category: record.category.trim(),
+    practice,
+  };
+}
+
+function normalizeAddedPractice(value: unknown): Practice | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.text !== 'string' || !record.text.trim()) return null;
+  return {
+    level: isLevelValue(record.level) ? record.level : 'moderate',
+    text: record.text.trim(),
+    why: typeof record.why === 'string' ? record.why : '',
+    evidence: typeof record.evidence === 'string' ? record.evidence : '',
+    references: Array.isArray(record.references) && record.references.every((item) => typeof item === 'string')
+      ? record.references
+      : [],
+    effort: isScoreValue(record.effort) ? record.effort : 2,
+    visibility: isScoreValue(record.visibility) ? record.visibility : 2,
+    evidenceType: typeof record.evidenceType === 'string' ? record.evidenceType : '',
+    evidenceFit: typeof record.evidenceFit === 'string' ? record.evidenceFit : '',
   };
 }
 

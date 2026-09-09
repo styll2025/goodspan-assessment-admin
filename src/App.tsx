@@ -31,12 +31,12 @@ import {
   practicesForDisplay,
   suggestCircleFor,
 } from './lib/matching';
-import { applyPracticeEdits, applyPracticePatch, practiceIdentity, practicePatchFrom, practiceSourceText, splitReferenceLines } from './lib/practiceBank';
+import { appendPracticeAdds, applyPracticeEdits, applyPracticePatch, blankPractice, newPracticeAddId, practiceIdentity, practicePatchFrom, practiceSourceText, splitReferenceLines } from './lib/practiceBank';
 import { uniqueMemberCities } from './lib/cities';
 import { memberFacingCopy } from './lib/memberFacingCopy';
 import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
 import { downloadXlsx } from './lib/xlsx';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, PracticePatch, PracticesData, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, PracticeAdd, PracticePatch, PracticesData, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
 type Score = 1 | 2 | 3;
@@ -158,9 +158,13 @@ export default function App() {
   const [swaps, setSwaps] = useState(savedOverrides.swaps);
   const [circleOverrides, setCircleOverrides] = useState(savedOverrides.circleOverrides);
   const [practiceEdits, setPracticeEdits] = useState(savedOverrides.practiceEdits);
+  const [practiceAdds, setPracticeAdds] = useState(savedOverrides.practiceAdds);
   const [sheetConnected, setSheetConnected] = useState(false);
   const [sheetLoading, setSheetLoading] = useState(authed);
-  const bank = useMemo(() => applyPracticeEdits(practiceEdits), [practiceEdits]);
+  const bank = useMemo(
+    () => appendPracticeAdds(applyPracticeEdits(practiceEdits), practiceAdds),
+    [practiceEdits, practiceAdds],
+  );
 
   const plans = useMemo(
     () =>
@@ -217,8 +221,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    saveAdminOverrides({ swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits });
-  }, [swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits]);
+    saveAdminOverrides({ swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits, practiceAdds });
+  }, [swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits, practiceAdds]);
 
   const loadFromSheet = useCallback(async () => {
     setSheetLoading(true);
@@ -340,12 +344,43 @@ export default function App() {
     });
   }
 
+  function addLibraryPractice(nextRow: { pillarId: Pillar; category: string; practice: Practice }) {
+    setPracticeAdds((prev) => ({
+      ...prev,
+      [newPracticeAddId()]: {
+        pillarId: nextRow.pillarId,
+        category: nextRow.category,
+        practice: nextRow.practice,
+      },
+    }));
+  }
+
+  function saveAddedPractice(id: string, nextRow: { pillarId: Pillar; category: string; practice: Practice }) {
+    setPracticeAdds((prev) => ({
+      ...prev,
+      [id]: {
+        pillarId: nextRow.pillarId,
+        category: nextRow.category,
+        practice: nextRow.practice,
+      },
+    }));
+  }
+
+  function removeAddedPractice(id: string) {
+    setPracticeAdds((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
   function resetOverrides() {
     setSwaps({});
     setLevelOverrides({});
     setPillarOverrides({});
     setCircleOverrides({});
     setPracticeEdits({});
+    setPracticeAdds({});
   }
 
   function moveCircleMember(memberId: string, targetId: string) {
@@ -536,7 +571,11 @@ export default function App() {
           onQuery={setPracticeQuery}
           bank={bank}
           edits={practiceEdits}
+          adds={practiceAdds}
           onSavePractice={saveLibraryPractice}
+          onAddPractice={addLibraryPractice}
+          onSaveAdded={saveAddedPractice}
+          onRemoveAdded={removeAddedPractice}
         />
       )}
 
@@ -548,7 +587,7 @@ export default function App() {
           sheetConnected={sheetConnected}
           sheetLoading={sheetLoading}
           status={status}
-          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, movedIds, practiceEdits)}
+          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, movedIds, practiceEdits, practiceAdds)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
           plans={plans}
@@ -1750,6 +1789,7 @@ type LibraryPracticeRow = {
   originalId: string;
   original: { pillarId: Pillar; category: string; practice: Practice };
   edited: boolean;
+  added: boolean;
 };
 
 function libraryExportFilename({
@@ -1828,7 +1868,11 @@ function PracticeBank({
   onQuery,
   bank,
   edits,
+  adds,
   onSavePractice,
+  onAddPractice,
+  onSaveAdded,
+  onRemoveAdded,
 }: {
   pillar: Pillar | 'all';
   category: string;
@@ -1844,15 +1888,25 @@ function PracticeBank({
   onQuery: (query: string) => void;
   bank: PracticesData;
   edits: Record<string, PracticePatch>;
+  adds: Record<string, PracticeAdd>;
   onSavePractice: (
     originalId: string,
     original: { pillarId: Pillar; category: string; practice: Practice },
     nextRow: { pillarId: Pillar; category: string; practice: Practice },
   ) => void;
+  onAddPractice: (nextRow: { pillarId: Pillar; category: string; practice: Practice }) => void;
+  onSaveAdded: (id: string, nextRow: { pillarId: Pillar; category: string; practice: Practice }) => void;
+  onRemoveAdded: (id: string) => void;
 }) {
   const [editId, setEditId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const categoryOptions = bankCategories(pillar, bank);
-  const rows = PILLARS.flatMap((pillarId) =>
+  const addPillar = pillar === 'all' ? PILLARS[0] : pillar;
+  const addCategory = category === 'all' ? (bankCategories(addPillar, bank)[0] ?? '') : category;
+  const addLevel = level === 'all' ? 'moderate' : level;
+  const addEffort = effort === 'all' ? 2 : effort;
+  const addVisibility = visibility === 'all' ? 2 : visibility;
+  const originalRows = PILLARS.flatMap((pillarId) =>
     Object.entries(PRACTICES[pillarId]).flatMap(([categoryName, practices]) =>
       practices.map((practice) => {
         const originalId = practiceIdentity(pillarId, categoryName, practice);
@@ -1864,10 +1918,21 @@ function PracticeBank({
           category: located.category,
           practice: located.practice,
           edited: Boolean(edits[originalId]),
+          added: false,
         };
       }),
     ),
-  ).filter((row) => {
+  );
+  const addedRows = Object.entries(adds).map(([id, add]) => ({
+    originalId: id,
+    original: { pillarId: add.pillarId, category: add.category, practice: add.practice },
+    pillarId: add.pillarId,
+    category: add.category,
+    practice: add.practice,
+    edited: false,
+    added: true,
+  }));
+  const rows = [...addedRows, ...originalRows].filter((row) => {
     const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence} ${row.practice.evidenceType} ${row.practice.evidenceFit} ${row.practice.references.join(' ')}`.toLowerCase();
     const family = bank[row.pillarId]?.[row.category] ?? [row.practice];
     return (
@@ -1885,18 +1950,27 @@ function PracticeBank({
   })).filter((group) => group.rows.length > 0);
   const allChallenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
   const editCount = Object.keys(edits).length;
+  const addCount = Object.keys(adds).length;
 
   return (
     <main className="page">
       <section className="pageIntro">
         <p className="eyebrow">Library</p>
         <h1>Practice Bank</h1>
-        <p>All practices across the four core Span pillars. Edits stay on this browser and apply to every member plan that uses that practice.</p>
+        <p>All practices across the four core Span pillars. You can edit any field or add a practice. Changes stay on this browser and apply to every member plan that uses that practice.</p>
       </section>
-      {editCount > 0 && (
+      {(editCount > 0 || addCount > 0) && (
         <div className="infoBox">
-          <strong>Library edits active</strong>
-          <p>{editCount} {editCount === 1 ? 'practice has' : 'practices have'} been edited from the original bank.</p>
+          <strong>Library changes active</strong>
+          <p>
+            {editCount > 0
+              ? `${editCount} ${editCount === 1 ? 'practice has' : 'practices have'} been edited from the original bank.`
+              : null}
+            {editCount > 0 && addCount > 0 ? ' ' : null}
+            {addCount > 0
+              ? `${addCount} ${addCount === 1 ? 'practice has' : 'practices have'} been added on this browser.`
+              : null}
+          </p>
         </div>
       )}
       <div className="filterBar">
@@ -1960,6 +2034,16 @@ function PracticeBank({
         <span className="shownLabel">{rows.length} shown</span>
         <button
           type="button"
+          className="libraryAdd"
+          onClick={() => {
+            setAdding(true);
+            setEditId(null);
+          }}
+        >
+          Add practice
+        </button>
+        <button
+          type="button"
           className="primary libraryDownload"
           disabled={rows.length === 0}
           onClick={() => downloadLibraryPractices(rows, { pillar, category, level, effort, visibility, query, bank })}
@@ -1967,8 +2051,25 @@ function PracticeBank({
           Download Excel
         </button>
       </div>
+      {adding && (
+        <section className="libraryAddPanel">
+          <h2>New practice</h2>
+          <LibraryPracticeEditor
+            key={`new-${addPillar}-${addCategory}-${addLevel}-${addEffort}-${addVisibility}`}
+            pillarId={addPillar}
+            category={addCategory}
+            practice={blankPractice(addLevel, addEffort, addVisibility)}
+            submitLabel="Add practice"
+            onCancel={() => setAdding(false)}
+            onSave={(nextRow) => {
+              onAddPractice(nextRow);
+              setAdding(false);
+            }}
+          />
+        </section>
+      )}
       {rows.length === 0 ? (
-        <p className="emptyLine">No practices match these filters.</p>
+        adding ? null : <p className="emptyLine">No practices match these filters.</p>
       ) : (
         grouped.map((group) => (
           <section key={group.pillarId} className="bankGroup">
@@ -2002,10 +2103,23 @@ function PracticeBank({
                       <button
                         type="button"
                         className="textActionBtn"
-                        onClick={() => setEditId(editId === row.originalId ? null : row.originalId)}
+                        onClick={() => {
+                          setEditId(editId === row.originalId ? null : row.originalId);
+                          setAdding(false);
+                        }}
                       >
                         {editId === row.originalId ? 'Close' : 'Edit'}
                       </button>
+                      {row.added ? (
+                        <button
+                          type="button"
+                          className="textActionBtn"
+                          onClick={() => onRemoveAdded(row.originalId)}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                      {row.added ? <em className="movedTag">Added</em> : null}
                       {row.edited ? <em className="movedTag">Edited</em> : null}
                     </span>
                     <span className="categoryText">{PILLAR_LABEL[row.pillarId]}</span>
@@ -2041,7 +2155,8 @@ function PracticeBank({
                       practice={row.practice}
                       onCancel={() => setEditId(null)}
                       onSave={(nextRow) => {
-                        onSavePractice(row.originalId, row.original, nextRow);
+                        if (row.added) onSaveAdded(row.originalId, nextRow);
+                        else onSavePractice(row.originalId, row.original, nextRow);
                         setEditId(null);
                       }}
                     />
@@ -2063,12 +2178,14 @@ function LibraryPracticeEditor({
   practice,
   onSave,
   onCancel,
+  submitLabel = 'Save',
 }: {
   pillarId: Pillar;
   category: string;
   practice: Practice;
   onSave: (nextRow: { pillarId: Pillar; category: string; practice: Practice }) => void;
   onCancel: () => void;
+  submitLabel?: string;
 }) {
   const [draftPillar, setDraftPillar] = useState(pillarId);
   const [draftCategory, setDraftCategory] = useState(category);
@@ -2169,7 +2286,7 @@ function LibraryPracticeEditor({
         <input value={draftEvidenceFit} onChange={(event) => setDraftEvidenceFit(event.target.value)} />
       </label>
       <div className="practiceEditActions">
-        <button type="submit" className="primary">Save</button>
+        <button type="submit" className="primary">{submitLabel}</button>
         <button type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
@@ -3023,12 +3140,13 @@ function overrideSummary(
   pillarOverrides: Record<string, Pillar>,
   circleOverrides: Record<string, string>,
   practiceEdits: Record<string, PracticePatch>,
+  practiceAdds: Record<string, PracticeAdd>,
 ) {
   const swapCount = Object.keys(swaps).length;
   const levelCount = Object.keys(levelOverrides).length;
   const pillarCount = Object.keys(pillarOverrides).length;
   const circleCount = Object.keys(circleOverrides).length;
-  const libraryCount = Object.keys(practiceEdits).length;
+  const libraryCount = Object.keys(practiceEdits).length + Object.keys(practiceAdds).length;
   if (swapCount + levelCount + pillarCount + circleCount + libraryCount === 0) {
     return 'No manual swaps, practice edits, intensity overrides, Span overrides or Circle moves yet.';
   }

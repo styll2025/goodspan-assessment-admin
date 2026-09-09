@@ -1633,12 +1633,27 @@ summary {
   text-transform: uppercase;
 }
 
+.filterBar .libraryAdd,
 .filterBar .libraryDownload {
   align-self: end;
   height: 40px;
   flex: 0 0 auto;
   padding: 0 16px;
   white-space: nowrap;
+}
+
+.libraryAddPanel {
+  padding: 20px 34px 8px;
+}
+
+.libraryAddPanel h2 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+.libraryAddPanel .libraryEdit {
+  margin: 0;
 }
 
 .filterBar .libraryDownload:disabled {
@@ -1679,7 +1694,7 @@ summary {
 
 .bankGrid {
   display: grid;
-  grid-template-columns: 72px 72px minmax(140px, 180px) 78px 56px 72px minmax(220px, 1.3fr) minmax(220px, 1.2fr) minmax(130px, 0.75fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr);
+  grid-template-columns: 92px 72px minmax(140px, 180px) 78px 56px 72px minmax(220px, 1.3fr) minmax(220px, 1.2fr) minmax(130px, 0.75fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr);
   gap: 0 14px;
   align-items: start;
   min-width: 1840px;
@@ -1769,7 +1784,12 @@ summary {
 
 .bankCard .movedTag {
   display: inline-block;
-  margin-left: 8px;
+  margin: 6px 8px 0 0;
+}
+
+.bankRow .textActionBtn {
+  display: block;
+  margin-bottom: 4px;
 }
 
 .practiceEdit,
