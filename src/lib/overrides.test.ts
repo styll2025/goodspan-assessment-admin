@@ -22,6 +22,7 @@ describe('normalizeSwapRecord', () => {
         text: 'Create a 30min to 1 hour screen-free wind-down before bed.',
         displayCategory: 'Evening rhythm',
         displayText: 'Leave screens in another room.',
+        displayWhy: 'Member-specific why.',
         displayEvidence: 'Member-specific evidence.',
       },
     })).toEqual({
@@ -30,6 +31,7 @@ describe('normalizeSwapRecord', () => {
         text: 'Create a 30min to 1 hour screen-free wind-down before bed.',
         displayCategory: 'Evening rhythm',
         displayText: 'Leave screens in another room.',
+        displayWhy: 'Member-specific why.',
         displayEvidence: 'Member-specific evidence.',
       },
     });

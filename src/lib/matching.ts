@@ -295,12 +295,13 @@ export function matchedChallengeTerms(
 export function normalizeSlotSwap(value: string | SlotSwap | undefined): SlotSwap | null {
   if (!value) return null;
   if (typeof value === 'string') return value ? { category: '', text: value } : null;
-  if (!value.text && !value.displayCategory && !value.displayText && value.displayEvidence == null) return null;
+  if (!value.text && !value.displayCategory && !value.displayText && value.displayWhy == null && value.displayEvidence == null) return null;
   return {
     category: value.category ?? '',
     text: value.text ?? '',
     ...(value.displayCategory ? { displayCategory: value.displayCategory } : {}),
     ...(value.displayText ? { displayText: value.displayText } : {}),
+    ...(value.displayWhy != null ? { displayWhy: value.displayWhy } : {}),
     ...(value.displayEvidence != null ? { displayEvidence: value.displayEvidence } : {}),
   };
 }
@@ -325,13 +326,14 @@ export function applySlotSwaps(
 }
 
 function applySlotCopy(item: PlanItem, swap: SlotSwap): PlanItem {
-  if (!swap.displayCategory && !swap.displayText && swap.displayEvidence == null) return item;
+  if (!swap.displayCategory && !swap.displayText && swap.displayWhy == null && swap.displayEvidence == null) return item;
   return {
     ...item,
     category: swap.displayCategory || item.category,
     practice: {
       ...item.practice,
       text: swap.displayText || item.practice.text,
+      ...(swap.displayWhy != null ? { why: swap.displayWhy } : {}),
       ...(swap.displayEvidence != null ? { evidence: swap.displayEvidence, references: [] } : {}),
     },
   };

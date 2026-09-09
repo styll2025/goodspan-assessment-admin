@@ -501,7 +501,7 @@ describe('C5 start with this', () => {
     expect(new Set(swapped.items.map((entry) => entry.category)).size).toBe(swapped.items.length);
   });
 
-  it('rewrites category, practice wording and evidence for one member only', () => {
+  it('rewrites category, practice wording, why and evidence for one member only', () => {
     const person = respondent({ focusArea: 'sleep' });
     const base = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
     const original = base.items[0];
@@ -513,16 +513,19 @@ describe('C5 start with this', () => {
           text: original.practice.text,
           displayCategory: 'Evening rhythm',
           displayText: 'Put the phone in another room an hour before bed.',
+          displayWhy: 'This why is for this member only.',
           displayEvidence: 'This wording is for this member only.',
         },
       },
     });
     expect(edited.items[0].category).toBe('Evening rhythm');
     expect(edited.items[0].practice.text).toBe('Put the phone in another room an hour before bed.');
+    expect(edited.items[0].practice.why).toBe('This why is for this member only.');
     expect(edited.items[0].practice.evidence).toBe('This wording is for this member only.');
     expect(edited.items[0].practice.references).toEqual([]);
     expect(edited.items[1].category).toBe(base.items[1].category);
     expect(edited.items[1].practice.text).toBe(base.items[1].practice.text);
+    expect(edited.items[1].practice.why).toBe(base.items[1].practice.why);
   });
 
   it('keeps one Screentime practice on GoodSleep and offers it at every intensity', () => {

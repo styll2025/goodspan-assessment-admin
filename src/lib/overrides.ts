@@ -35,6 +35,7 @@ export function normalizeSwapRecord(value: unknown): Record<string, SlotSwap> {
       text?: unknown;
       displayCategory?: unknown;
       displayText?: unknown;
+      displayWhy?: unknown;
       displayEvidence?: unknown;
     };
     if (typeof record.text !== 'string' || !record.text) return;
@@ -46,6 +47,9 @@ export function normalizeSwapRecord(value: unknown): Record<string, SlotSwap> {
         : {}),
       ...(typeof record.displayText === 'string' && record.displayText
         ? { displayText: record.displayText }
+        : {}),
+      ...(typeof record.displayWhy === 'string'
+        ? { displayWhy: record.displayWhy }
         : {}),
       ...(typeof record.displayEvidence === 'string'
         ? { displayEvidence: record.displayEvidence }

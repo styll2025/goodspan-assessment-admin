@@ -97,6 +97,7 @@ export type SlotSwap = {
   text: string;
   displayCategory?: string;
   displayText?: string;
+  displayWhy?: string;
   displayEvidence?: string;
 };
 

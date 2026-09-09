@@ -309,7 +309,7 @@ export default function App() {
   function editPracticeSlot(
     respondentId: string,
     index: number,
-    draft: { category: string; text: string; evidence: string },
+    draft: { category: string; text: string; why: string; evidence: string },
   ) {
     const plan = plans.get(respondentId);
     const item = plan?.items[index];
@@ -324,8 +324,9 @@ export default function App() {
       const next: SlotSwap = { category: sourceCategory, text: sourceText };
       if (draft.category !== sourceCategory) next.displayCategory = draft.category;
       if (draft.text !== sourceText) next.displayText = draft.text;
+      if (draft.why !== chosen.why) next.displayWhy = draft.why;
       if (draft.evidence !== practiceSourceText(chosen)) next.displayEvidence = draft.evidence;
-      if (!next.displayCategory && !next.displayText && next.displayEvidence == null && !current) return prev;
+      if (!next.displayCategory && !next.displayText && next.displayWhy == null && next.displayEvidence == null && !current) return prev;
       return { ...prev, [key]: next };
     });
   }
@@ -660,7 +661,7 @@ function RespondentPlan({
   onPillarOverride: (pillar: Pillar) => void;
   spanOverridden: boolean;
   onSwapPractice: (index: number, category: string, text: string) => void;
-  onEditPractice: (index: number, draft: { category: string; text: string; evidence: string }) => void;
+  onEditPractice: (index: number, draft: { category: string; text: string; why: string; evidence: string }) => void;
   slotSwaps: Record<number, SlotSwap>;
   bank: PracticesData;
   settings: MatchingSettings;
@@ -751,7 +752,7 @@ function RespondentPlan({
               const sourceExpanded = sourceOpen === itemKey;
               const slotSwap = slotSwaps[slotIndex];
               const sourceCategory = slotSwap?.category || item.category;
-              const wordingEdited = Boolean(slotSwap?.displayCategory || slotSwap?.displayText || slotSwap?.displayEvidence != null);
+              const wordingEdited = Boolean(slotSwap?.displayCategory || slotSwap?.displayText || slotSwap?.displayWhy != null || slotSwap?.displayEvidence != null);
               const categoryOptions = swapOpen === itemKey
                 ? otherCategoryOptions(plan.pillarId, plan.levelId, respondent, plan.items, sourceCategory, settings, bank)
                 : [];
@@ -775,7 +776,7 @@ function RespondentPlan({
                         </button>
                         <button
                           className="textActionBtn"
-                          title="Edit the category, practice wording, and evidence for this member."
+                          title="Edit the category, practice wording, why, and evidence for this member."
                           type="button"
                           onClick={() => {
                             setEditOpen(editOpen === itemKey ? null : itemKey);
@@ -801,7 +802,7 @@ function RespondentPlan({
                       <div className="infoBox swapInfo">
                         <strong>How this slot was filled, and what Swap and Edit do</strong>
                         <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the member's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. Edit changes the category label, practice wording, and evidence text for this member only. Neither changes the Practice Bank.</p>
+                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. Edit changes the category label, practice wording, why, and evidence text for this member only. Neither changes the Practice Bank.</p>
                       </div>
                     )}
                     {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
@@ -828,6 +829,7 @@ function RespondentPlan({
                       <MemberPracticeEditor
                         category={item.category}
                         text={item.practice.text}
+                        why={item.practice.why}
                         evidence={source}
                         onCancel={() => setEditOpen(null)}
                         onSave={(draft) => {
@@ -1062,18 +1064,21 @@ function RespondentPlan({
 function MemberPracticeEditor({
   category,
   text,
+  why,
   evidence,
   onSave,
   onCancel,
 }: {
   category: string;
   text: string;
+  why: string;
   evidence: string;
-  onSave: (draft: { category: string; text: string; evidence: string }) => void;
+  onSave: (draft: { category: string; text: string; why: string; evidence: string }) => void;
   onCancel: () => void;
 }) {
   const [draftCategory, setDraftCategory] = useState(category);
   const [draftText, setDraftText] = useState(text);
+  const [draftWhy, setDraftWhy] = useState(why);
   const [draftEvidence, setDraftEvidence] = useState(evidence);
 
   return (
@@ -1084,7 +1089,7 @@ function MemberPracticeEditor({
         const nextCategory = draftCategory.trim();
         const nextText = draftText.trim();
         if (!nextCategory || !nextText) return;
-        onSave({ category: nextCategory, text: nextText, evidence: draftEvidence.trim() });
+        onSave({ category: nextCategory, text: nextText, why: draftWhy.trim(), evidence: draftEvidence.trim() });
       }}
     >
       <label>
@@ -1094,6 +1099,10 @@ function MemberPracticeEditor({
       <label>
         <span>Practice</span>
         <textarea rows={3} value={draftText} onChange={(event) => setDraftText(event.target.value)} />
+      </label>
+      <label>
+        <span>Why</span>
+        <textarea rows={3} value={draftWhy} onChange={(event) => setDraftWhy(event.target.value)} />
       </label>
       <label>
         <span>Evidence</span>
