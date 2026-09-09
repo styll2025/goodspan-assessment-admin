@@ -31,11 +31,12 @@ import {
   practicesForDisplay,
   suggestCircleFor,
 } from './lib/matching';
+import { applyPracticeEdits, applyPracticePatch, practiceIdentity, practicePatchFrom, practiceSourceText, splitReferenceLines } from './lib/practiceBank';
 import { uniqueMemberCities } from './lib/cities';
 import { memberFacingCopy } from './lib/memberFacingCopy';
 import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
 import { downloadXlsx } from './lib/xlsx';
-import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
+import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, PracticePatch, PracticesData, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
 
 type Tab = 'members' | 'circles' | 'library' | 'settings';
 type Score = 1 | 2 | 3;
@@ -156,8 +157,10 @@ export default function App() {
   const [pillarOverrides, setPillarOverrides] = useState(savedOverrides.pillarOverrides);
   const [swaps, setSwaps] = useState(savedOverrides.swaps);
   const [circleOverrides, setCircleOverrides] = useState(savedOverrides.circleOverrides);
+  const [practiceEdits, setPracticeEdits] = useState(savedOverrides.practiceEdits);
   const [sheetConnected, setSheetConnected] = useState(false);
   const [sheetLoading, setSheetLoading] = useState(authed);
+  const bank = useMemo(() => applyPracticeEdits(practiceEdits), [practiceEdits]);
 
   const plans = useMemo(
     () =>
@@ -174,11 +177,11 @@ export default function App() {
               pillarId: pillarOverrides[respondent.id],
               levelId: levelOverrides[respondent.id],
               swaps: slotSwaps,
-            }),
+            }, bank),
           ];
         }),
       ),
-    [respondents, settings, levelOverrides, pillarOverrides, swaps],
+    [respondents, settings, levelOverrides, pillarOverrides, swaps, bank],
   );
   const autoCircles = useMemo(() => autoCluster(respondents, plans, settings), [respondents, plans, settings]);
   const circles = useMemo(
@@ -214,8 +217,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    saveAdminOverrides({ swaps, levelOverrides, pillarOverrides, circleOverrides });
-  }, [swaps, levelOverrides, pillarOverrides, circleOverrides]);
+    saveAdminOverrides({ swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits });
+  }, [swaps, levelOverrides, pillarOverrides, circleOverrides, practiceEdits]);
 
   const loadFromSheet = useCallback(async () => {
     setSheetLoading(true);
@@ -282,11 +285,57 @@ export default function App() {
     setSwaps((prev) => {
       const next = { ...prev, [`${respondentId}:${index}`]: { category, text } };
       if (!plan) return next;
-      const otherIndex = plan.items.findIndex((item, slot) => slot !== index && item.category === category);
+      const otherIndex = plan.items.findIndex((item, slot) => {
+        if (slot === index) return false;
+        const source = prev[`${respondentId}:${slot}`];
+        return (source?.category || item.category) === category;
+      });
       if (otherIndex >= 0) {
         const current = plan.items[index];
-        next[`${respondentId}:${otherIndex}`] = { category: current.category, text: current.practice.text };
+        const currentSource = prev[`${respondentId}:${index}`];
+        next[`${respondentId}:${otherIndex}`] = {
+          category: currentSource?.category || current.category,
+          text: currentSource?.text || current.practice.text,
+        };
       }
+      return next;
+    });
+  }
+
+  function editPracticeSlot(
+    respondentId: string,
+    index: number,
+    draft: { category: string; text: string; evidence: string },
+  ) {
+    const plan = plans.get(respondentId);
+    const item = plan?.items[index];
+    if (!item || !plan) return;
+    setSwaps((prev) => {
+      const key = `${respondentId}:${index}`;
+      const current = prev[key];
+      const sourceCategory = current?.category || item.category;
+      const sourceText = current?.text || item.practice.text;
+      const family = bank[plan.pillarId]?.[sourceCategory] ?? [];
+      const chosen = family.find((practice) => practice.text === sourceText) ?? item.practice;
+      const next: SlotSwap = { category: sourceCategory, text: sourceText };
+      if (draft.category !== sourceCategory) next.displayCategory = draft.category;
+      if (draft.text !== sourceText) next.displayText = draft.text;
+      if (draft.evidence !== practiceSourceText(chosen)) next.displayEvidence = draft.evidence;
+      if (!next.displayCategory && !next.displayText && next.displayEvidence == null && !current) return prev;
+      return { ...prev, [key]: next };
+    });
+  }
+
+  function saveLibraryPractice(
+    originalId: string,
+    original: { pillarId: Pillar; category: string; practice: Practice },
+    nextRow: { pillarId: Pillar; category: string; practice: Practice },
+  ) {
+    const patch = practicePatchFrom(original, nextRow);
+    setPracticeEdits((prev) => {
+      const next = { ...prev };
+      if (patch) next[originalId] = patch;
+      else delete next[originalId];
       return next;
     });
   }
@@ -296,6 +345,7 @@ export default function App() {
     setLevelOverrides({});
     setPillarOverrides({});
     setCircleOverrides({});
+    setPracticeEdits({});
   }
 
   function moveCircleMember(memberId: string, targetId: string) {
@@ -429,6 +479,14 @@ export default function App() {
                 onPillarOverride={(pillar) => setPillarOverride(selected.id, pillar)}
                 spanOverridden={Boolean(pillarOverrides[selected.id])}
                 onSwapPractice={(index, category, text) => swapPractice(selected.id, index, category, text)}
+                onEditPractice={(index, draft) => editPracticeSlot(selected.id, index, draft)}
+                slotSwaps={Object.fromEntries(
+                  Object.entries(swaps).flatMap(([key, swap]) => {
+                    const [id, index] = key.split(':');
+                    return id === selected.id ? [[Number(index), swap] as const] : [];
+                  }),
+                )}
+                bank={bank}
                 settings={settings}
               />
             ) : (
@@ -468,7 +526,7 @@ export default function App() {
           query={practiceQuery}
           onPillar={(next) => {
             setPracticePillar(next);
-            const allowed = bankCategories(next);
+            const allowed = bankCategories(next, bank);
             setPracticeCategory((current) => (current !== 'all' && !allowed.includes(current) ? 'all' : current));
           }}
           onCategory={setPracticeCategory}
@@ -476,6 +534,9 @@ export default function App() {
           onEffort={setPracticeEffort}
           onVisibility={setPracticeVisibility}
           onQuery={setPracticeQuery}
+          bank={bank}
+          edits={practiceEdits}
+          onSavePractice={saveLibraryPractice}
         />
       )}
 
@@ -487,10 +548,11 @@ export default function App() {
           sheetConnected={sheetConnected}
           sheetLoading={sheetLoading}
           status={status}
-          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, movedIds)}
+          overrideSummary={overrideSummary(swaps, levelOverrides, pillarOverrides, movedIds, practiceEdits)}
           onResetOverrides={resetOverrides}
           respondents={respondents}
           plans={plans}
+          bank={bank}
           selectedId={selected?.id ?? ''}
           onSelectId={setSelectedId}
         />
@@ -546,6 +608,9 @@ function RespondentPlan({
   onPillarOverride,
   spanOverridden,
   onSwapPractice,
+  onEditPractice,
+  slotSwaps,
+  bank,
   settings,
 }: {
   respondent: Respondent;
@@ -556,10 +621,14 @@ function RespondentPlan({
   onPillarOverride: (pillar: Pillar) => void;
   spanOverridden: boolean;
   onSwapPractice: (index: number, category: string, text: string) => void;
+  onEditPractice: (index: number, draft: { category: string; text: string; evidence: string }) => void;
+  slotSwaps: Record<number, SlotSwap>;
+  bank: PracticesData;
   settings: MatchingSettings;
 }) {
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
   const [swapOpen, setSwapOpen] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState<string | null>(null);
   const [sourceOpen, setSourceOpen] = useState<string | null>(null);
   const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
   const [habitInfoOpen, setHabitInfoOpen] = useState(false);
@@ -639,19 +708,26 @@ function RespondentPlan({
           <div className="practiceList">
             {practicesForDisplay(plan.items).map(({ item, slotIndex }, displayIndex) => {
               const itemKey = `${slotIndex}-${item.category}-${item.practice.text}`;
-              const source = item.practice.references.join('\n') || item.practice.evidence;
+              const source = practiceSourceText(item.practice);
               const sourceExpanded = sourceOpen === itemKey;
+              const slotSwap = slotSwaps[slotIndex];
+              const sourceCategory = slotSwap?.category || item.category;
+              const wordingEdited = Boolean(slotSwap?.displayCategory || slotSwap?.displayText || slotSwap?.displayEvidence != null);
               const categoryOptions = swapOpen === itemKey
-                ? otherCategoryOptions(plan.pillarId, plan.levelId, respondent, plan.items, item.category, settings)
+                ? otherCategoryOptions(plan.pillarId, plan.levelId, respondent, plan.items, sourceCategory, settings, bank)
                 : [];
               return (
                 <article key={itemKey} className="practice">
                   <span className="slot">{String(displayIndex + 1).padStart(2, '0')}</span>
                   <div className="practiceBody">
                     <div className="practiceHead">
-                      <span className="familyLabel">{item.category}</span>
+                      <span className="familyLabel">
+                        {item.category}
+                        {wordingEdited ? <em className="movedTag">Edited</em> : null}
+                      </span>
                       <span className="practiceActions">
                         <button
+                          className="infoBtn"
                           title="How Swap works"
                           type="button"
                           onClick={() => setInfoOpen(infoOpen === itemKey ? null : itemKey)}
@@ -659,9 +735,24 @@ function RespondentPlan({
                           i
                         </button>
                         <button
+                          className="textActionBtn"
+                          title="Edit the category, practice wording, and evidence for this member."
+                          type="button"
+                          onClick={() => {
+                            setEditOpen(editOpen === itemKey ? null : itemKey);
+                            setSwapOpen(null);
+                          }}
+                        >
+                          {editOpen === itemKey ? 'Close ↑' : 'Edit'}
+                        </button>
+                        <button
+                          className="textActionBtn"
                           title="Swap this practice within its category, or change the category for this slot."
                           type="button"
-                          onClick={() => setSwapOpen(swapOpen === itemKey ? null : itemKey)}
+                          onClick={() => {
+                            setSwapOpen(swapOpen === itemKey ? null : itemKey);
+                            setEditOpen(null);
+                          }}
                         >
                           {swapOpen === itemKey ? 'Close ↑' : 'Swap ↻'}
                         </button>
@@ -669,9 +760,9 @@ function RespondentPlan({
                     </div>
                     {infoOpen === itemKey && (
                       <div className="infoBox swapInfo">
-                        <strong>How this slot was filled, and what Swap does</strong>
+                        <strong>How this slot was filled, and what Swap and Edit do</strong>
                         <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the member's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. It changes this member only and leaves the Practice Bank untouched.</p>
+                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. Edit changes the category label, practice wording, and evidence text for this member only. Neither changes the Practice Bank.</p>
                       </div>
                     )}
                     {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}
@@ -694,16 +785,28 @@ function RespondentPlan({
                         </div>
                       </div>
                     )}
+                    {editOpen === itemKey && (
+                      <MemberPracticeEditor
+                        category={item.category}
+                        text={item.practice.text}
+                        evidence={source}
+                        onCancel={() => setEditOpen(null)}
+                        onSave={(draft) => {
+                          onEditPractice(slotIndex, draft);
+                          setEditOpen(null);
+                        }}
+                      />
+                    )}
                     {swapOpen === itemKey && (
                       <div className="alternativeBox">
-                        <div>Alternatives in {item.category}</div>
+                        <div>Alternatives in {sourceCategory}</div>
                         {item.alternatives.length ? (
                           item.alternatives.map((alternative) => (
                             <button
                               key={alternative.text}
                               type="button"
                               onClick={() => {
-                                onSwapPractice(slotIndex, item.category, alternative.text);
+                                onSwapPractice(slotIndex, sourceCategory, alternative.text);
                                 setSwapOpen(null);
                               }}
                             >
@@ -914,6 +1017,54 @@ function RespondentPlan({
         </div>
       </section>
     </>
+  );
+}
+
+function MemberPracticeEditor({
+  category,
+  text,
+  evidence,
+  onSave,
+  onCancel,
+}: {
+  category: string;
+  text: string;
+  evidence: string;
+  onSave: (draft: { category: string; text: string; evidence: string }) => void;
+  onCancel: () => void;
+}) {
+  const [draftCategory, setDraftCategory] = useState(category);
+  const [draftText, setDraftText] = useState(text);
+  const [draftEvidence, setDraftEvidence] = useState(evidence);
+
+  return (
+    <form
+      className="practiceEdit"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const nextCategory = draftCategory.trim();
+        const nextText = draftText.trim();
+        if (!nextCategory || !nextText) return;
+        onSave({ category: nextCategory, text: nextText, evidence: draftEvidence.trim() });
+      }}
+    >
+      <label>
+        <span>Category</span>
+        <input value={draftCategory} onChange={(event) => setDraftCategory(event.target.value)} />
+      </label>
+      <label>
+        <span>Practice</span>
+        <textarea rows={3} value={draftText} onChange={(event) => setDraftText(event.target.value)} />
+      </label>
+      <label>
+        <span>Evidence</span>
+        <textarea rows={4} value={draftEvidence} onChange={(event) => setDraftEvidence(event.target.value)} />
+      </label>
+      <div className="practiceEditActions">
+        <button type="submit" className="primary">Save</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
   );
 }
 
@@ -1583,11 +1734,11 @@ function sharedCirclePractices(members: Respondent[], plans: Map<string, Plan>) 
   return [...byText.values()].filter((entry) => entry.names.length >= 2);
 }
 
-function bankCategories(pillar: Pillar | 'all'): string[] {
+function bankCategories(pillar: Pillar | 'all', bank: PracticesData): string[] {
   const pillars = pillar === 'all' ? PILLARS : [pillar];
   const names = new Set<string>();
   pillars.forEach((pillarId) => {
-    Object.keys(PRACTICES[pillarId]).forEach((category) => names.add(category));
+    Object.keys(bank[pillarId] ?? {}).forEach((category) => names.add(category));
   });
   return [...names].sort((a, b) => a.localeCompare(b));
 }
@@ -1596,6 +1747,9 @@ type LibraryPracticeRow = {
   pillarId: Pillar;
   category: string;
   practice: Practice;
+  originalId: string;
+  original: { pillarId: Pillar; category: string; practice: Practice };
+  edited: boolean;
 };
 
 function libraryExportFilename({
@@ -1632,6 +1786,7 @@ function downloadLibraryPractices(
     effort: Score | 'all';
     visibility: Score | 'all';
     query: string;
+    bank: PracticesData;
   },
 ) {
   const challenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
@@ -1643,7 +1798,7 @@ function downloadLibraryPractices(
       return [
         PILLAR_LABEL[row.pillarId],
         row.category,
-        title(libraryLevelLabel(PRACTICES[row.pillarId][row.category], row.practice)),
+        title(libraryLevelLabel(filters.bank[row.pillarId][row.category], row.practice)),
         String(row.practice.effort),
         String(row.practice.visibility),
         row.practice.text,
@@ -1671,6 +1826,9 @@ function PracticeBank({
   onEffort,
   onVisibility,
   onQuery,
+  bank,
+  edits,
+  onSavePractice,
 }: {
   pillar: Pillar | 'all';
   category: string;
@@ -1684,15 +1842,34 @@ function PracticeBank({
   onEffort: (effort: Score | 'all') => void;
   onVisibility: (visibility: Score | 'all') => void;
   onQuery: (query: string) => void;
+  bank: PracticesData;
+  edits: Record<string, PracticePatch>;
+  onSavePractice: (
+    originalId: string,
+    original: { pillarId: Pillar; category: string; practice: Practice },
+    nextRow: { pillarId: Pillar; category: string; practice: Practice },
+  ) => void;
 }) {
-  const categoryOptions = bankCategories(pillar);
+  const [editId, setEditId] = useState<string | null>(null);
+  const categoryOptions = bankCategories(pillar, bank);
   const rows = PILLARS.flatMap((pillarId) =>
     Object.entries(PRACTICES[pillarId]).flatMap(([categoryName, practices]) =>
-      practices.map((practice) => ({ pillarId, category: categoryName, practice })),
+      practices.map((practice) => {
+        const originalId = practiceIdentity(pillarId, categoryName, practice);
+        const located = applyPracticePatch(pillarId, categoryName, practice, edits[originalId]);
+        return {
+          originalId,
+          original: { pillarId, category: categoryName, practice },
+          pillarId: located.pillarId,
+          category: located.category,
+          practice: located.practice,
+          edited: Boolean(edits[originalId]),
+        };
+      }),
     ),
   ).filter((row) => {
     const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence} ${row.practice.evidenceType} ${row.practice.evidenceFit} ${row.practice.references.join(' ')}`.toLowerCase();
-    const family = PRACTICES[row.pillarId][row.category];
+    const family = bank[row.pillarId]?.[row.category] ?? [row.practice];
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
       (category === 'all' || row.category === category) &&
@@ -1707,14 +1884,21 @@ function PracticeBank({
     rows: rows.filter((row) => row.pillarId === pillarId),
   })).filter((group) => group.rows.length > 0);
   const allChallenges = Object.keys(CHALLENGE_KEYWORDS) as Challenge[];
+  const editCount = Object.keys(edits).length;
 
   return (
     <main className="page">
       <section className="pageIntro">
         <p className="eyebrow">Library</p>
         <h1>Practice Bank</h1>
-        <p>All practices across the four core Span pillars.</p>
+        <p>All practices across the four core Span pillars. Edits stay on this browser and apply to every member plan that uses that practice.</p>
       </section>
+      {editCount > 0 && (
+        <div className="infoBox">
+          <strong>Library edits active</strong>
+          <p>{editCount} {editCount === 1 ? 'practice has' : 'practices have'} been edited from the original bank.</p>
+        </div>
+      )}
       <div className="filterBar">
         <div className="filterCluster">
           <BankFilter
@@ -1778,7 +1962,7 @@ function PracticeBank({
           type="button"
           className="primary libraryDownload"
           disabled={rows.length === 0}
-          onClick={() => downloadLibraryPractices(rows, { pillar, category, level, effort, visibility, query })}
+          onClick={() => downloadLibraryPractices(rows, { pillar, category, level, effort, visibility, query, bank })}
         >
           Download Excel
         </button>
@@ -1794,6 +1978,7 @@ function PracticeBank({
             </div>
             <div className="bankScroll">
             <div className="bankGrid bankHead">
+              <span>Edit</span>
               <span>Pillar</span>
               <span>Category</span>
               <span>Level</span>
@@ -1809,33 +1994,58 @@ function PracticeBank({
             </div>
             {group.rows.map((row) => {
               const terms = matchedChallengeTerms(row.practice, row.category, allChallenges);
+              const family = bank[row.pillarId]?.[row.category] ?? [row.practice];
               return (
-                <article key={`${row.pillarId}-${row.category}-${row.practice.level}-${row.practice.text}`} className="bankGrid bankRow">
-                  <span className="categoryText">{PILLAR_LABEL[row.pillarId]}</span>
-                  <span className="categoryText">{row.category}</span>
-                  <span className={`levelText ${isSharedLevelFamily(PRACTICES[row.pillarId][row.category]) ? 'all' : row.practice.level}`}>
-                    {libraryLevelLabel(PRACTICES[row.pillarId][row.category], row.practice)}
-                  </span>
-                  <span className="scoreCol">{row.practice.effort}</span>
-                  <span className="scoreCol">{row.practice.visibility}</span>
-                  <strong className="practiceText">{row.practice.text}</strong>
-                  <span className="whyText">{row.practice.why || '—'}</span>
-                  <span className="keywordCell">
-                    {terms.length
-                      ? terms.slice(0, 4).map((term) => (
-                          <span className="keywordChip" key={`${term.challenge}-${term.keyword}`}>
-                            {term.keyword}
-                            <small>{term.challenge}</small>
-                          </span>
-                        ))
-                      : '—'}
-                  </span>
-                  <span className="evidenceText">{row.practice.evidence || '—'}</span>
-                  <span className="referencesText">
-                    {row.practice.references.length ? row.practice.references.join(' ') : '—'}
-                  </span>
-                  <span className="evidenceMeta">{row.practice.evidenceType || '—'}</span>
-                  <span className="evidenceMeta">{row.practice.evidenceFit || '—'}</span>
+                <article key={row.originalId} className="bankCard">
+                  <div className="bankGrid bankRow">
+                    <span>
+                      <button
+                        type="button"
+                        className="textActionBtn"
+                        onClick={() => setEditId(editId === row.originalId ? null : row.originalId)}
+                      >
+                        {editId === row.originalId ? 'Close' : 'Edit'}
+                      </button>
+                      {row.edited ? <em className="movedTag">Edited</em> : null}
+                    </span>
+                    <span className="categoryText">{PILLAR_LABEL[row.pillarId]}</span>
+                    <span className="categoryText">{row.category}</span>
+                    <span className={`levelText ${isSharedLevelFamily(family) ? 'all' : row.practice.level}`}>
+                      {libraryLevelLabel(family, row.practice)}
+                    </span>
+                    <span className="scoreCol">{row.practice.effort}</span>
+                    <span className="scoreCol">{row.practice.visibility}</span>
+                    <strong className="practiceText">{row.practice.text}</strong>
+                    <span className="whyText">{row.practice.why || '—'}</span>
+                    <span className="keywordCell">
+                      {terms.length
+                        ? terms.slice(0, 4).map((term) => (
+                            <span className="keywordChip" key={`${term.challenge}-${term.keyword}`}>
+                              {term.keyword}
+                              <small>{term.challenge}</small>
+                            </span>
+                          ))
+                        : '—'}
+                    </span>
+                    <span className="evidenceText">{row.practice.evidence || '—'}</span>
+                    <span className="referencesText">
+                      {row.practice.references.length ? row.practice.references.join(' ') : '—'}
+                    </span>
+                    <span className="evidenceMeta">{row.practice.evidenceType || '—'}</span>
+                    <span className="evidenceMeta">{row.practice.evidenceFit || '—'}</span>
+                  </div>
+                  {editId === row.originalId && (
+                    <LibraryPracticeEditor
+                      pillarId={row.pillarId}
+                      category={row.category}
+                      practice={row.practice}
+                      onCancel={() => setEditId(null)}
+                      onSave={(nextRow) => {
+                        onSavePractice(row.originalId, row.original, nextRow);
+                        setEditId(null);
+                      }}
+                    />
+                  )}
                 </article>
               );
             })}
@@ -1844,6 +2054,125 @@ function PracticeBank({
         ))
       )}
     </main>
+  );
+}
+
+function LibraryPracticeEditor({
+  pillarId,
+  category,
+  practice,
+  onSave,
+  onCancel,
+}: {
+  pillarId: Pillar;
+  category: string;
+  practice: Practice;
+  onSave: (nextRow: { pillarId: Pillar; category: string; practice: Practice }) => void;
+  onCancel: () => void;
+}) {
+  const [draftPillar, setDraftPillar] = useState(pillarId);
+  const [draftCategory, setDraftCategory] = useState(category);
+  const [draftLevel, setDraftLevel] = useState(practice.level);
+  const [draftEffort, setDraftEffort] = useState(practice.effort);
+  const [draftVisibility, setDraftVisibility] = useState(practice.visibility);
+  const [draftText, setDraftText] = useState(practice.text);
+  const [draftWhy, setDraftWhy] = useState(practice.why);
+  const [draftEvidence, setDraftEvidence] = useState(practice.evidence);
+  const [draftReferences, setDraftReferences] = useState(practice.references.join('\n'));
+  const [draftEvidenceType, setDraftEvidenceType] = useState(practice.evidenceType);
+  const [draftEvidenceFit, setDraftEvidenceFit] = useState(practice.evidenceFit);
+
+  return (
+    <form
+      className="libraryEdit"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const nextCategory = draftCategory.trim();
+        const nextText = draftText.trim();
+        if (!nextCategory || !nextText) return;
+        onSave({
+          pillarId: draftPillar,
+          category: nextCategory,
+          practice: {
+            ...practice,
+            level: draftLevel,
+            effort: draftEffort,
+            visibility: draftVisibility,
+            text: nextText,
+            why: draftWhy.trim(),
+            evidence: draftEvidence.trim(),
+            references: splitReferenceLines(draftReferences),
+            evidenceType: draftEvidenceType.trim(),
+            evidenceFit: draftEvidenceFit.trim(),
+          },
+        });
+      }}
+    >
+      <label>
+        <span>Pillar</span>
+        <select value={draftPillar} onChange={(event) => setDraftPillar(event.target.value as Pillar)}>
+          {PILLARS.map((item) => (
+            <option key={item} value={item}>{PILLAR_LABEL[item]}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Category</span>
+        <input value={draftCategory} onChange={(event) => setDraftCategory(event.target.value)} />
+      </label>
+      <label>
+        <span>Level</span>
+        <select value={draftLevel} onChange={(event) => setDraftLevel(event.target.value as Level)}>
+          <option value="gentle">Gentle</option>
+          <option value="moderate">Moderate</option>
+          <option value="deep">Deep</option>
+        </select>
+      </label>
+      <label>
+        <span>Effort</span>
+        <select value={String(draftEffort)} onChange={(event) => setDraftEffort(Number(event.target.value) as Score)}>
+          {SCORES.map((item) => (
+            <option key={item} value={item}>{SCORE_LABEL[item]}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Visibility</span>
+        <select value={String(draftVisibility)} onChange={(event) => setDraftVisibility(Number(event.target.value) as Score)}>
+          {SCORES.map((item) => (
+            <option key={item} value={item}>{SCORE_LABEL[item]}</option>
+          ))}
+        </select>
+      </label>
+      <label className="libraryEditWide">
+        <span>Practice</span>
+        <textarea rows={3} value={draftText} onChange={(event) => setDraftText(event.target.value)} />
+      </label>
+      <label className="libraryEditWide">
+        <span>Why</span>
+        <textarea rows={3} value={draftWhy} onChange={(event) => setDraftWhy(event.target.value)} />
+      </label>
+      <label className="libraryEditWide">
+        <span>Evidence</span>
+        <textarea rows={3} value={draftEvidence} onChange={(event) => setDraftEvidence(event.target.value)} />
+      </label>
+      <label className="libraryEditWide">
+        <span>References</span>
+        <textarea rows={3} value={draftReferences} onChange={(event) => setDraftReferences(event.target.value)} />
+      </label>
+      <label>
+        <span>Evidence type</span>
+        <input value={draftEvidenceType} onChange={(event) => setDraftEvidenceType(event.target.value)} />
+      </label>
+      <label>
+        <span>Evidence–practice fit</span>
+        <input value={draftEvidenceFit} onChange={(event) => setDraftEvidenceFit(event.target.value)} />
+      </label>
+      <div className="practiceEditActions">
+        <button type="submit" className="primary">Save</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
   );
 }
 
@@ -1928,6 +2257,7 @@ function SettingsView({
   onResetOverrides,
   respondents,
   plans,
+  bank,
   selectedId,
   onSelectId,
 }: {
@@ -1941,6 +2271,7 @@ function SettingsView({
   onResetOverrides: () => void;
   respondents: Respondent[];
   plans: Map<string, Plan>;
+  bank: PracticesData;
   selectedId: string;
   onSelectId: (id: string) => void;
 }) {
@@ -1962,7 +2293,7 @@ function SettingsView({
     (Object.keys(HABIT_CATEGORY_MAP[pillar]) as HabitKey[]).map((habit) => ({
       pillar,
       habit,
-      categories: Object.keys(PRACTICES[pillar]),
+      categories: Object.keys(bank[pillar] ?? {}),
       selected: settings.habitCategoryMap[pillar][habit] ?? [],
     })),
   );
@@ -1972,7 +2303,7 @@ function SettingsView({
       <section className="pageIntro">
         <p className="eyebrow">Configuration</p>
         <h1>Settings</h1>
-        <p>Assessment responses load automatically. Manual Circle moves, practice swaps, and Span or intensity overrides stay saved on this browser.</p>
+        <p>Assessment responses load automatically. Manual Circle moves, practice wording, Library edits, and Span or intensity overrides stay saved on this browser.</p>
       </section>
 
       <section className="settingSection">
@@ -2351,7 +2682,7 @@ function SettingsView({
       <section className="settingSection last">
         <div>
           <h2>Saved changes</h2>
-          <p>Circle moves, practice swaps, and Span or intensity overrides stay on this browser after you log out. Resetting clears them.</p>
+          <p>Circle moves, practice wording, Library edits, and Span or intensity overrides stay on this browser after you log out. Resetting clears them.</p>
         </div>
         <div className="settingBody">
           <div className="toggleInfo first">
@@ -2691,16 +3022,19 @@ function overrideSummary(
   levelOverrides: Record<string, Level>,
   pillarOverrides: Record<string, Pillar>,
   circleOverrides: Record<string, string>,
+  practiceEdits: Record<string, PracticePatch>,
 ) {
   const swapCount = Object.keys(swaps).length;
   const levelCount = Object.keys(levelOverrides).length;
   const pillarCount = Object.keys(pillarOverrides).length;
   const circleCount = Object.keys(circleOverrides).length;
-  if (swapCount + levelCount + pillarCount + circleCount === 0) {
-    return 'No manual swaps, intensity overrides, Span overrides or Circle moves yet.';
+  const libraryCount = Object.keys(practiceEdits).length;
+  if (swapCount + levelCount + pillarCount + circleCount + libraryCount === 0) {
+    return 'No manual swaps, practice edits, intensity overrides, Span overrides or Circle moves yet.';
   }
   const parts = [
-    `${swapCount} practice swap${swapCount === 1 ? '' : 's'}`,
+    `${swapCount} practice edit${swapCount === 1 ? '' : 's'}`,
+    `${libraryCount} Library edit${libraryCount === 1 ? '' : 's'}`,
     `${levelCount} intensity override${levelCount === 1 ? '' : 's'}`,
     `${pillarCount} Span override${pillarCount === 1 ? '' : 's'}`,
     `${circleCount} Circle move${circleCount === 1 ? '' : 's'}`,

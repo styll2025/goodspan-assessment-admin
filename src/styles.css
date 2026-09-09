@@ -615,6 +615,9 @@ p {
 }
 
 .familyLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #2c4636;
   font-size: 10.5px;
   font-weight: 800;
@@ -658,7 +661,7 @@ p {
   white-space: nowrap;
 }
 
-.practiceActions button:first-child {
+.practiceActions .infoBtn {
   display: flex;
   width: 19px;
   height: 19px;
@@ -675,7 +678,8 @@ p {
   padding: 0;
 }
 
-.practiceActions button:last-child {
+.practiceActions .textActionBtn,
+.textActionBtn {
   border: none;
   background: none;
   color: #5a5f56;
@@ -1675,10 +1679,10 @@ summary {
 
 .bankGrid {
   display: grid;
-  grid-template-columns: 72px minmax(140px, 180px) 78px 56px 72px minmax(220px, 1.3fr) minmax(220px, 1.2fr) minmax(130px, 0.75fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr);
+  grid-template-columns: 72px 72px minmax(140px, 180px) 78px 56px 72px minmax(220px, 1.3fr) minmax(220px, 1.2fr) minmax(130px, 0.75fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr);
   gap: 0 14px;
   align-items: start;
-  min-width: 1760px;
+  min-width: 1840px;
 }
 
 .bankHead {
@@ -1757,6 +1761,91 @@ summary {
 
 .bankRow:hover {
   background: #f5f4ec;
+}
+
+.bankCard .bankRow {
+  padding: 12px 34px;
+}
+
+.bankCard .movedTag {
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.practiceEdit,
+.libraryEdit {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  background: #f5f4ec;
+  border: 1px solid #dfddd3;
+}
+
+.libraryEdit {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 34px 16px;
+}
+
+.practiceEdit label,
+.libraryEdit label {
+  display: grid;
+  gap: 6px;
+}
+
+.libraryEditWide {
+  grid-column: 1 / -1;
+}
+
+.practiceEdit span,
+.libraryEdit span {
+  color: #8a8f86;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.practiceEdit input,
+.practiceEdit textarea,
+.libraryEdit input,
+.libraryEdit textarea,
+.libraryEdit select {
+  width: 100%;
+  border: 1px solid #dfddd3;
+  background: #fff;
+  color: #1b1f1a;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 10px 12px;
+}
+
+.practiceEdit textarea,
+.libraryEdit textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.45;
+}
+
+.practiceEditActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.libraryEdit .practiceEditActions {
+  grid-column: 1 / -1;
+}
+
+.practiceEditActions button:not(.primary) {
+  border: none;
+  background: none;
+  color: #5a5f56;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .levelText {

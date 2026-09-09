@@ -95,6 +95,23 @@ export type PlanItem = {
 export type SlotSwap = {
   category: string;
   text: string;
+  displayCategory?: string;
+  displayText?: string;
+  displayEvidence?: string;
+};
+
+export type PracticePatch = {
+  pillarId?: Pillar;
+  category?: string;
+  level?: Level;
+  text?: string;
+  why?: string;
+  evidence?: string;
+  references?: string[];
+  effort?: 1 | 2 | 3;
+  visibility?: 1 | 2 | 3;
+  evidenceType?: string;
+  evidenceFit?: string;
 };
 
 export type Plan = {

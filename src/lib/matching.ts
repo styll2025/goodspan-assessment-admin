@@ -295,8 +295,14 @@ export function matchedChallengeTerms(
 export function normalizeSlotSwap(value: string | SlotSwap | undefined): SlotSwap | null {
   if (!value) return null;
   if (typeof value === 'string') return value ? { category: '', text: value } : null;
-  if (!value.text) return null;
-  return { category: value.category ?? '', text: value.text };
+  if (!value.text && !value.displayCategory && !value.displayText && value.displayEvidence == null) return null;
+  return {
+    category: value.category ?? '',
+    text: value.text ?? '',
+    ...(value.displayCategory ? { displayCategory: value.displayCategory } : {}),
+    ...(value.displayText ? { displayText: value.displayText } : {}),
+    ...(value.displayEvidence != null ? { displayEvidence: value.displayEvidence } : {}),
+  };
 }
 
 export function applySlotSwaps(
@@ -309,11 +315,26 @@ export function applySlotSwaps(
     if (!swap) return item;
     const targetName = swap.category || item.category;
     const family = scoredCategories.find((entry) => entry.category === targetName);
-    if (!family?.practices.length) return item;
-    const chosen = family.practices.find((practice) => practice.text === swap.text) ?? family.practices[0];
-    if (chosen.text === item.practice.text && family.category === item.category) return item;
-    return toPlanItem(family, chosen, item.reason);
+    const chosen = family?.practices.find((practice) => practice.text === swap.text)
+      ?? (swap.text ? family?.practices[0] : undefined);
+    const base = family && chosen && (chosen.text !== item.practice.text || family.category !== item.category)
+      ? toPlanItem(family, chosen, item.reason)
+      : item;
+    return applySlotCopy(base, swap);
   });
+}
+
+function applySlotCopy(item: PlanItem, swap: SlotSwap): PlanItem {
+  if (!swap.displayCategory && !swap.displayText && swap.displayEvidence == null) return item;
+  return {
+    ...item,
+    category: swap.displayCategory || item.category,
+    practice: {
+      ...item.practice,
+      text: swap.displayText || item.practice.text,
+      ...(swap.displayEvidence != null ? { evidence: swap.displayEvidence, references: [] } : {}),
+    },
+  };
 }
 
 export function otherCategoryOptions(
@@ -323,8 +344,9 @@ export function otherCategoryOptions(
   currentItems: PlanItem[],
   currentCategory: string,
   settings: MatchingSettings = DEFAULT_SETTINGS,
+  bank: PracticesData = PRACTICES,
 ): Array<{ category: string; practice: Practice; used: boolean; score: number }> {
-  return buildScoredCategories(pillarId, levelId, respondent, settings)
+  return buildScoredCategories(pillarId, levelId, respondent, settings, bank)
     .filter((family) => family.category !== currentCategory && family.practices[0])
     .map((family) => ({
       category: family.category,
@@ -339,11 +361,12 @@ export function buildPlan(
   respondent: Respondent,
   settings: MatchingSettings = DEFAULT_SETTINGS,
   overrides?: { pillarId?: Pillar; levelId?: Level; swaps?: Record<number, string | SlotSwap> },
+  bank: PracticesData = PRACTICES,
 ): Plan {
   const rec = computeRecommendation(respondent, settings);
   const pillarId = overrides?.pillarId ?? rec.pillarId;
   const levelId = overrides?.levelId ?? rec.levelId;
-  const scoredCategories = buildScoredCategories(pillarId, levelId, respondent, settings);
+  const scoredCategories = buildScoredCategories(pillarId, levelId, respondent, settings, bank);
   let items = buildSlots(scoredCategories, pillarId, respondent, settings);
   if (overrides?.swaps) {
     items = applySlotSwaps(items, scoredCategories, overrides.swaps);
@@ -408,8 +431,9 @@ export function applyCircleOverrides(
     if (!targetId) return;
     let target = byId.get(targetId);
     if (!target) {
-      target = createCircleFromId(targetId);
-      if (!target) return;
+      const created = createCircleFromId(targetId);
+      if (!created) return;
+      target = created;
       next.push(target);
       byId.set(target.id, target);
     }
@@ -536,8 +560,9 @@ function buildScoredCategories(
   levelId: Level,
   respondent: Respondent,
   settings: MatchingSettings,
+  bank: PracticesData = PRACTICES,
 ): ScoredCategory[] {
-  return Object.entries(PRACTICES[pillarId]).map(([category, practices]) => ({
+  return Object.entries(bank[pillarId] ?? {}).map(([category, practices]) => ({
     category,
     practices: practicesForLevel(practices, levelId)
       .map((practice) => ({

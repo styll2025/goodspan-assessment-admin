@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSwapRecord } from './overrides';
+import { normalizePracticeEdits, normalizeSwapRecord } from './overrides';
 
 describe('normalizeSwapRecord', () => {
   it('keeps legacy string swaps and object swaps', () => {
@@ -12,6 +12,51 @@ describe('normalizeSwapRecord', () => {
       'r1:0': { category: '', text: 'Leave your phone outside the bed — not in it or under the pillow.' },
       'r1:1': { category: 'Screentime', text: 'Create a 30min to 1 hour screen-free wind-down before bed.' },
       'r1:2': { category: '', text: 'missing category still works' },
+    });
+  });
+
+  it('keeps member wording edits on a swap', () => {
+    expect(normalizeSwapRecord({
+      'r1:0': {
+        category: 'Screentime',
+        text: 'Create a 30min to 1 hour screen-free wind-down before bed.',
+        displayCategory: 'Evening rhythm',
+        displayText: 'Leave screens in another room.',
+        displayEvidence: 'Member-specific evidence.',
+      },
+    })).toEqual({
+      'r1:0': {
+        category: 'Screentime',
+        text: 'Create a 30min to 1 hour screen-free wind-down before bed.',
+        displayCategory: 'Evening rhythm',
+        displayText: 'Leave screens in another room.',
+        displayEvidence: 'Member-specific evidence.',
+      },
+    });
+  });
+});
+
+describe('normalizePracticeEdits', () => {
+  it('keeps valid library field patches', () => {
+    expect(normalizePracticeEdits({
+      id: {
+        pillarId: 'eat',
+        category: 'Nourish',
+        text: 'Rewritten practice.',
+        effort: 2,
+        visibility: 3,
+        references: ['A citation.'],
+      },
+      bad: { effort: 9, pillarId: 'nope' },
+    })).toEqual({
+      id: {
+        pillarId: 'eat',
+        category: 'Nourish',
+        text: 'Rewritten practice.',
+        effort: 2,
+        visibility: 3,
+        references: ['A citation.'],
+      },
     });
   });
 });
