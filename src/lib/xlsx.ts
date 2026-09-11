@@ -1,3 +1,5 @@
+import { triggerBrowserDownload } from './download';
+
 const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit += 1) {
@@ -199,15 +201,7 @@ export function downloadXlsx(filename: string, headers: string[], rows: string[]
   const bytes = buildXlsx(headers, rows);
   const payload = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(payload).set(bytes);
-  const blob = new Blob([payload], {
+  triggerBrowserDownload(new Blob([payload], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  }), filename);
 }

@@ -35,6 +35,7 @@ import { appendPracticeAdds, applyPracticeEdits, applyPracticePatch, blankPracti
 import { uniqueMemberCities } from './lib/cities';
 import { memberFacingCopy } from './lib/memberFacingCopy';
 import { keepKeyedByMember, keepSwapsForMembers, loadAdminOverrides, saveAdminOverrides } from './lib/overrides';
+import { fetchCorsJson } from './lib/http';
 import { downloadXlsx } from './lib/xlsx';
 import type { Challenge, Circle, HabitKey, Level, MatchingSettings, Pillar, Plan, Practice, PracticeAdd, PracticePatch, PracticesData, Respondent, SlotSwap, StartWithThisSettings, TimePerDay } from './types';
 
@@ -228,9 +229,7 @@ export default function App() {
     setSheetLoading(true);
     setStatus('Loading assessment responses...');
     try {
-      const response = await fetch(ASSESSMENT_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const rows = (await response.json()) as Record<string, unknown>[];
+      const rows = (await fetchCorsJson(ASSESSMENT_URL)) as Record<string, unknown>[];
       if (!Array.isArray(rows)) throw new Error('Unexpected response shape');
       const next = rows.map(normalizeRespondent);
       const ids = new Set(next.map((respondent) => respondent.id));
@@ -399,23 +398,28 @@ export default function App() {
           <Brand />
           <h1>Admin</h1>
           <div className="rule" />
-          <div className="loginForm">
+          <form
+            className="loginForm"
+            onSubmit={(event) => {
+              event.preventDefault();
+              login();
+            }}
+          >
             <input
               type="password"
+              name="passcode"
+              autoComplete="current-password"
               placeholder="Passcode"
               value={passcodeInput}
               onChange={(event) => {
                 setPasscodeInput(event.target.value);
                 setLoginError('');
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') login();
-              }}
             />
-            <button className="primary" onClick={login}>
+            <button type="submit" className="primary">
               Enter →
             </button>
-          </div>
+          </form>
           {loginError && <p className="error">{loginError}</p>}
         </div>
       </div>
@@ -438,6 +442,7 @@ export default function App() {
               {(['members', 'circles', 'library', 'settings'] as Tab[]).map((item) => (
                 <button
                   key={item}
+                  type="button"
                   className={tab === item ? 'active navButton' : 'navButton'}
                   onClick={() => {
                     setTab(item);
@@ -453,7 +458,7 @@ export default function App() {
           <div className="topStatus">
             <span className="dot" />
             <span className="countLabel">{respondents.length} {respondents.length === 1 ? 'member' : 'members'}</span>
-            <button className="textButton" onClick={logout}>Log out</button>
+            <button type="button" className="textButton" onClick={logout}>Log out</button>
           </div>
         </header>
       )}
@@ -1141,10 +1146,10 @@ function PlanDocument({
   return (
     <main className="planDoc">
       <div className="planToolbar" data-noprint>
-        <button onClick={onBack}>← Back to member</button>
+        <button type="button" onClick={onBack}>← Back to member</button>
         <div>
           <span>{respondent.preferredName || 'Unnamed'} · {GOOD_PILLAR_LABEL[plan.pillarId]}</span>
-          <button className="primary" onClick={() => window.print()}>Download Plan</button>
+          <button type="button" className="primary" onClick={() => window.print()}>Download Plan</button>
         </div>
       </div>
       <MemberPlanPages respondent={respondent} plan={plan} idPrefix="plan" />
@@ -1541,10 +1546,10 @@ function CircleOverview({
   return (
     <main className="planDoc circleDoc">
       <div className="planToolbar" data-noprint>
-        <button onClick={onBack}>← Back to Circles</button>
+        <button type="button" onClick={onBack}>← Back to Circles</button>
         <div>
           <span>Circle {index + 1} · {spanLabel}</span>
-          <button className="primary" onClick={() => window.print()}>Download Overview</button>
+          <button type="button" className="primary" onClick={() => window.print()}>Download Overview</button>
         </div>
       </div>
 
