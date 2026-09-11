@@ -267,20 +267,23 @@ export default function App() {
   }
 
   function setLevelOverride(respondentId: string, level: Level) {
+    const currentLevel = plans.get(respondentId)?.levelId;
     setLevelOverrides((prev) => ({ ...prev, [respondentId]: level }));
-    clearMemberSwaps(respondentId);
+    if (currentLevel !== level) clearMemberSwaps(respondentId);
   }
 
   function setPillarOverride(respondentId: string, pillar: Pillar) {
     const person = respondents.find((respondent) => respondent.id === respondentId);
     const matched = person ? computeRecommendation(person, settings).pillarId : pillar;
+    const currentPillar = plans.get(respondentId)?.pillarId ?? matched;
+    const nextPillar = pillar === matched ? matched : pillar;
     setPillarOverrides((prev) => {
       const next = { ...prev };
       if (pillar === matched) delete next[respondentId];
       else next[respondentId] = pillar;
       return next;
     });
-    clearMemberSwaps(respondentId);
+    if (currentPillar !== nextPillar) clearMemberSwaps(respondentId);
   }
 
   function swapPractice(respondentId: string, index: number, category: string, text: string) {
@@ -449,7 +452,12 @@ export default function App() {
       )}
 
       {tab === 'members' && planOpen && selected && selectedPlan && (
-        <PlanDocument respondent={selected} plan={selectedPlan} onBack={() => setPlanOpen(false)} />
+        <PlanDocument
+          respondent={selected}
+          plan={selectedPlan}
+          spanOverridden={Boolean(pillarOverrides[selected.id])}
+          onBack={() => setPlanOpen(false)}
+        />
       )}
 
       {tab === 'members' && !planOpen && (
@@ -527,6 +535,7 @@ export default function App() {
           circle={circleOverview.circle}
           index={circleOverview.index}
           plans={plans}
+          pillarOverrides={pillarOverrides}
           onBack={() => setCircleOverview(null)}
         />
       )}
@@ -738,9 +747,11 @@ function RespondentPlan({
           <div className="practiceList">
             {practicesForDisplay(plan.items).map(({ item, slotIndex }, displayIndex) => {
               const itemKey = `${slotIndex}-${item.category}-${item.practice.text}`;
-              const source = practiceSourceText(item.practice);
-              const sourceExpanded = sourceOpen === itemKey;
               const slotSwap = slotSwaps[slotIndex];
+              const source = slotSwap?.displayEvidence != null
+                ? item.practice.evidence
+                : practiceSourceText(item.practice);
+              const sourceExpanded = sourceOpen === itemKey;
               const sourceCategory = slotSwap?.category || item.category;
               const wordingEdited = Boolean(slotSwap?.displayCategory || slotSwap?.displayText || slotSwap?.displayWhy != null || slotSwap?.displayEvidence != null);
               const categoryOptions = swapOpen === itemKey
@@ -1119,10 +1130,12 @@ function useDownloadTitle(title: string) {
 function PlanDocument({
   respondent,
   plan,
+  spanOverridden,
   onBack,
 }: {
   respondent: Respondent;
   plan: Plan;
+  spanOverridden: boolean;
   onBack: () => void;
 }) {
   const memberName = (respondent.preferredName || 'Unnamed').trim();
@@ -1137,7 +1150,7 @@ function PlanDocument({
           <button type="button" className="primary" onClick={() => window.print()}>Download Plan</button>
         </div>
       </div>
-      <MemberPlanPages respondent={respondent} plan={plan} idPrefix="plan" />
+      <MemberPlanPages respondent={respondent} plan={plan} spanOverridden={spanOverridden} idPrefix="plan" />
     </main>
   );
 }
@@ -1145,15 +1158,18 @@ function PlanDocument({
 function MemberPlanPages({
   respondent,
   plan,
+  spanOverridden = false,
   idPrefix,
 }: {
   respondent: Respondent;
   plan: Plan;
+  spanOverridden?: boolean;
   idPrefix: string;
 }) {
   const firstName = respondent.preferredName.split(/\s+/)[0] || 'there';
-  const spanWhy =
-    plan.overridden
+  const spanWhy = spanOverridden
+    ? `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${GOOD_PILLAR_LABEL[plan.pillarId]}.`
+    : plan.overridden
       ? `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${GOOD_PILLAR_LABEL[plan.pillarId]}, because it is the area you told us you most want to work on.`
       : `Your recommended longevity pillar for this ${FOUNDING_SPAN_LABEL} is ${GOOD_PILLAR_LABEL[plan.pillarId]}, because it is where your check-in showed the most room to grow.`;
   const challengeDetail = respondent.mainChallenges.length
@@ -1427,7 +1443,7 @@ function CirclesView({
         <p>
           These Circles belong to the {FOUNDING_SPAN_LABEL}, {FOUNDING_SPAN_START}. People are grouped by Span. A small
           Span group stays in one Circle so that Span can fill, instead of being split by personality or other traits.
-          Larger groups are then mixed across age, gender, personality, life stage, work and home life. Groups run{' '}
+          Larger groups are then mixed across age, gender, personality, work and home life. Groups run{' '}
           {numberWord(settings.minCircleSize)} to {numberWord(settings.maxCircleSize)} people.
         </p>
         {moveCount > 0 && (
@@ -1515,11 +1531,13 @@ function CircleOverview({
   circle,
   index,
   plans,
+  pillarOverrides,
   onBack,
 }: {
   circle: Circle;
   index: number;
   plans: Map<string, Plan>;
+  pillarOverrides: Record<string, Pillar>;
   onBack: () => void;
 }) {
   const places = uniqueMemberCities(circle.members.map((member) => member.location));
@@ -1696,7 +1714,12 @@ function CircleOverview({
         }
         return (
           <div key={member.id} className="embeddedPlan">
-            <MemberPlanPages respondent={member} plan={plan} idPrefix={`member-${member.id}`} />
+            <MemberPlanPages
+              respondent={member}
+              plan={plan}
+              spanOverridden={Boolean(pillarOverrides[member.id])}
+              idPrefix={`member-${member.id}`}
+            />
           </div>
         );
       })}
@@ -1932,7 +1955,18 @@ function PracticeBank({
     added: true,
   }));
   const rows = [...addedRows, ...originalRows].filter((row) => {
-    const text = `${row.category} ${row.practice.text} ${row.practice.why} ${row.practice.evidence} ${row.practice.evidenceType} ${row.practice.evidenceFit} ${row.practice.references.join(' ')}`.toLowerCase();
+    const haystack = [
+      PILLAR_LABEL[row.pillarId],
+      row.pillarId,
+      row.category,
+      row.practice.text,
+      row.practice.why,
+      row.practice.evidence,
+      row.practice.evidenceType,
+      row.practice.evidenceFit,
+      ...row.practice.references,
+    ].join(' ').toLowerCase();
+    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const family = bank[row.pillarId]?.[row.category] ?? [row.practice];
     return (
       (pillar === 'all' || row.pillarId === pillar) &&
@@ -1940,7 +1974,7 @@ function PracticeBank({
       (level === 'all' || row.practice.level === level || isSharedLevelFamily(family)) &&
       (effort === 'all' || row.practice.effort === effort) &&
       (visibility === 'all' || row.practice.visibility === visibility) &&
-      (!query || text.includes(query.toLowerCase()))
+      tokens.every((token) => haystack.includes(token))
     );
   });
   const grouped = PILLARS.map((pillarId) => ({
@@ -2029,7 +2063,20 @@ function PracticeBank({
             tip={VISIBILITY_TIP}
           />
         </div>
-        <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search practice text..." />
+        <label className="filterField librarySearchField">
+          <span className="filterLabel">Search</span>
+          <input
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(event) => onQuery(event.target.value)}
+            onInput={(event) => onQuery((event.target as HTMLInputElement).value)}
+            placeholder="Practice, why, evidence…"
+            aria-label="Search practices"
+          />
+        </label>
         <span className="shownLabel">{rows.length} shown</span>
         <button
           type="button"
@@ -2419,7 +2466,7 @@ function SettingsView({
       <section className="pageIntro">
         <p className="eyebrow">Configuration</p>
         <h1>Settings</h1>
-        <p>Assessment responses load automatically. Manual Circle moves, practice wording, Library edits, and Span or intensity overrides stay saved on this browser.</p>
+        <p>Assessment responses load automatically. Manual Circle moves, practice wording, Library edits, and Span or intensity overrides stay saved on this browser across sessions.</p>
       </section>
 
       <section className="settingSection">
@@ -2591,7 +2638,6 @@ function SettingsView({
             className="danger"
             onClick={() => update((next) => {
               next.traitWeights = { ...DEFAULT_SETTINGS.traitWeights };
-              next.targetCircleSize = DEFAULT_SETTINGS.targetCircleSize;
               next.minCircleSize = DEFAULT_SETTINGS.minCircleSize;
               next.maxCircleSize = DEFAULT_SETTINGS.maxCircleSize;
             })}
@@ -2633,16 +2679,6 @@ function SettingsView({
             <div>Group size, in people</div>
             <p>A Span group stays together until it is larger than the maximum. Groups are then flagged if they fall outside the minimum or maximum.</p>
           </div>
-          <WeightRow
-            label="Target size"
-            desc="Circles per Span are formed at roughly this size."
-            min={4}
-            max={10}
-            step={1}
-            value={settings.targetCircleSize}
-            display={peopleLabel(settings.targetCircleSize)}
-            onChange={(value) => update((next) => { next.targetCircleSize = value; })}
-          />
           <WeightRow
             label="Minimum size"
             desc="Below this a group is flagged “needs more” rather than forced."
@@ -2827,7 +2863,6 @@ const TRAIT_ROWS: Array<{ key: keyof MatchingSettings['traitWeights']; label: st
   { key: 'ageBand', label: 'Age band', desc: 'Counts once for each member already in the same age band.' },
   { key: 'gender', label: 'Gender', desc: 'Counts once for each member with the same gender answer.' },
   { key: 'personality', label: 'Personality', desc: 'Counts once for each member of the same type — introvert, ambivert or extrovert.' },
-  { key: 'lifeStage', label: 'Life stage', desc: 'Counts once for each member at the same life stage.' },
   { key: 'work', label: 'Work situation', desc: 'Counts once for each member with the same work situation.' },
   { key: 'home', label: 'Home life', desc: 'Counts once for each member with the same home-life answer.' },
 ];

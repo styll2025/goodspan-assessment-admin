@@ -334,7 +334,7 @@ function applySlotCopy(item: PlanItem, swap: SlotSwap): PlanItem {
       ...item.practice,
       text: swap.displayText || item.practice.text,
       ...(swap.displayWhy != null ? { why: swap.displayWhy } : {}),
-      ...(swap.displayEvidence != null ? { evidence: swap.displayEvidence, references: [] } : {}),
+      ...(swap.displayEvidence != null ? { evidence: swap.displayEvidence } : {}),
     },
   };
 }

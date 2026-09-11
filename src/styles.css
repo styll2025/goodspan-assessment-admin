@@ -1562,13 +1562,29 @@ summary {
   background-color: #fff;
 }
 
-.filterBar input {
-  align-self: end;
-  flex: 1 1 200px;
-  max-width: 280px;
-  min-width: 180px;
+.filterBar input,
+.librarySearchField input {
+  /* Override the global width:100% rule — Safari flex children with width:100%
+     expand across the sticky bar and steal clicks from the real search field. */
+  width: auto;
+  max-width: none;
+  min-width: 0;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.librarySearchField {
+  align-self: stretch;
+  flex: 1 1 240px;
+  max-width: 360px;
+  min-width: 200px;
+  pointer-events: auto;
+}
+
+.librarySearchField input {
+  height: 40px;
+  border-color: #1b1f1a;
+  background-color: #fff;
 }
 
 .filterCluster {
@@ -1576,6 +1592,11 @@ summary {
   flex: 1 1 720px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+  pointer-events: none;
+}
+
+.filterCluster > * {
+  pointer-events: auto;
 }
 
 @media (max-width: 960px) {

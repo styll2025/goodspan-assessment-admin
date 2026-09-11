@@ -525,7 +525,7 @@ describe('C5 start with this', () => {
     expect(edited.items[0].practice.text).toBe('Put the phone in another room an hour before bed.');
     expect(edited.items[0].practice.why).toBe('This why is for this member only.');
     expect(edited.items[0].practice.evidence).toBe('This wording is for this member only.');
-    expect(edited.items[0].practice.references).toEqual([]);
+    expect(edited.items[0].practice.references).toEqual(original.practice.references);
     expect(edited.items[1].category).toBe(base.items[1].category);
     expect(edited.items[1].practice.text).toBe(base.items[1].practice.text);
     expect(edited.items[1].practice.why).toBe(base.items[1].practice.why);
