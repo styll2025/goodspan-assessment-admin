@@ -284,25 +284,10 @@ export default function App() {
   }
 
   function swapPractice(respondentId: string, index: number, category: string, text: string) {
-    const plan = plans.get(respondentId);
-    setSwaps((prev) => {
-      const next = { ...prev, [`${respondentId}:${index}`]: { category, text } };
-      if (!plan) return next;
-      const otherIndex = plan.items.findIndex((item, slot) => {
-        if (slot === index) return false;
-        const source = prev[`${respondentId}:${slot}`];
-        return (source?.category || item.category) === category;
-      });
-      if (otherIndex >= 0) {
-        const current = plan.items[index];
-        const currentSource = prev[`${respondentId}:${index}`];
-        next[`${respondentId}:${otherIndex}`] = {
-          category: currentSource?.category || current.category,
-          text: currentSource?.text || current.practice.text,
-        };
-      }
-      return next;
-    });
+    setSwaps((prev) => ({
+      ...prev,
+      [`${respondentId}:${index}`]: { category, text },
+    }));
   }
 
   function editPracticeSlot(
@@ -807,7 +792,7 @@ function RespondentPlan({
                       <div className="infoBox swapInfo">
                         <strong>How this slot was filled, and what Swap and Edit do</strong>
                         <p>One Circle-facing category is given a slot outright. The other four go to the highest-priority categories, scored on their best practice's keyword matches against the member's stated challenges plus a bonus if the category maps to a habit answer they gave weakly. The practice shown is that category's highest-scoring option at this intensity.</p>
-                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. If you pick a category already on the plan, those two slots exchange. Edit changes the category label, practice wording, why, and evidence text for this member only. Neither changes the Practice Bank.</p>
+                        <p>Swap can replace this practice with another in the same category at this intensity, or change the category for this slot. A manual change only updates this slot — other practices stay put, even if that means two slots share a category. Edit changes the category label, practice wording, why, and evidence text for this member only. Neither changes the Practice Bank.</p>
                       </div>
                     )}
                     {item.startWithThis && <span className="reasonTag start">{START_FLAG_LABEL}</span>}

@@ -484,21 +484,24 @@ describe('C5 start with this', () => {
     expect(new Set(swapped.items.map((entry) => entry.category)).size).toBe(swapped.items.length);
   });
 
-  it('exchanges two slots when the chosen category is already on the plan', () => {
+  it('keeps other slots when a swap reuses a category already on the plan', () => {
     const person = respondent({ focusArea: 'sleep' });
     const base = buildPlan(person, DEFAULT_SETTINGS, { pillarId: 'sleep' });
-    const first = base.items[0];
     const second = base.items[1];
     const swapped = buildPlan(person, DEFAULT_SETTINGS, {
       pillarId: 'sleep',
       swaps: {
         0: { category: second.category, text: second.practice.text },
-        1: { category: first.category, text: first.practice.text },
       },
     });
     expect(swapped.items[0].category).toBe(second.category);
-    expect(swapped.items[1].category).toBe(first.category);
-    expect(new Set(swapped.items.map((entry) => entry.category)).size).toBe(swapped.items.length);
+    expect(swapped.items[0].practice.text).toBe(second.practice.text);
+    expect(swapped.items[1].category).toBe(second.category);
+    expect(swapped.items[1].practice.text).toBe(second.practice.text);
+    for (let index = 2; index < base.items.length; index += 1) {
+      expect(swapped.items[index].category).toBe(base.items[index].category);
+      expect(swapped.items[index].practice.text).toBe(base.items[index].practice.text);
+    }
   });
 
   it('rewrites category, practice wording, why and evidence for one member only', () => {
